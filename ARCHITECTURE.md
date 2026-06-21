@@ -6,7 +6,7 @@ Technical architecture overview and data flow for the Personal Assistant agent. 
 
 ## System overview
 
-The Personal Assistant is a **Claude Managed Agent** — a stateful, autonomous AI agent hosted entirely on Anthropic's infrastructure. It requires no servers, containers, or cloud infrastructure from the user.
+The Personal Assistant is a **Claude Managed Agent** — a stateful, autonomous AI agent hosted entirely on Anthropic's infrastructure. It requires no servers, containers, or cloud infrastructure from the user. It maintains a persistent wiki in Notion — a compounding knowledge base that makes the agent smarter with every run.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -20,7 +20,12 @@ The Personal Assistant is a **Claude Managed Agent** — a stateful, autonomous 
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │                 Processing Pipeline                    │   │
-│  │  Ingest → Dedup → Classify → Score → Route           │   │
+│  │  Ingest → Dedup → Enrich → Classify → Score → Route  │   │
+│  │                     ▲                            │     │   │
+│  │                     │    ┌──────────────┐        │     │   │
+│  │                     └────│ Assistant    │◄───────┘     │   │
+│  │                          │ Wiki (Notion)│              │   │
+│  │                          └──────────────┘              │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
@@ -62,14 +67,15 @@ Named capabilities the agent can perform. Each skill is a focused routine with i
 - Output format
 - Rules and constraints
 
-Five core skills:
+Six core skills:
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| `email_triage` | Every 10 min (urgent) / every hour (full) | Pull, classify, score, route items |
-| `meeting_followup` | Called by email_triage when meetings found | Process meeting transcripts |
-| `daily_digest` | 7 AM (morning) / 5 PM (EOD) | Compile and deliver briefings |
+| `email_triage` | Every 10 min (urgent) / every hour (full) | Pull, enrich from wiki, classify, score, route items, update wiki |
+| `meeting_followup` | Called by email_triage when meetings found | Process meeting transcripts, update wiki with decisions and context |
+| `daily_digest` | 7 AM (morning) / 5 PM (EOD) | Compile wiki-enriched briefings, run wiki maintenance |
 | `task_extraction` | Called by meeting_followup | Create Notion tasks from meetings |
-| `draft_response` | Called by email_triage for P0/P1 items | Generate draft replies |
+| `draft_response` | Called by email_triage for P0/P1 items | Generate wiki-informed draft replies |
+| `wiki_maintain` | Called by daily_digest / weekly standalone | Stale detection, confidence decay, lint, orphan/contradiction detection |
 
 ### 3. Credential vault
 
@@ -87,7 +93,7 @@ Automated triggers that wake the agent on a set cadence:
 - A new agent session starts
 - The session runs the specified skill with the given parameters
 - The session ends and the agent goes back to sleep
-- State (cursors, queues) persists between sessions
+- State (cursors, queues, wiki) persists between sessions
 
 ---
 
@@ -129,10 +135,16 @@ Automated triggers that wake the agent on a set cadence:
                  └──────┬───────┘           │
                         │                   │
                         ▼                   │
-                 ┌──────────────┐           │
-                 │  Classify    │◄──────────┘
-                 │  (P0-P3)     │    (context enrichment
-                 └──────┬───────┘     from Granola + Notion)
+                 ┌──────────────┐     ┌──────────────┐
+                 │  Enrich from │◄────│ Assistant    │
+                 │  wiki        │     │ Wiki (Notion)│
+                 └──────┬───────┘     └──────┬───────┘
+                        │                    ▲
+                        ▼                    │
+                 ┌──────────────┐            │
+                 │  Classify    │◄───────────┘
+                 │  (P0-P3)     │    (wiki context: Person,
+                 └──────┬───────┘     Project, Pattern pages)
                         │
                ┌────────┼────────┐────────┐
                ▼        ▼        ▼        ▼
@@ -144,7 +156,8 @@ Automated triggers that wake the agent on a set cadence:
          ┌──────────────────────────────────┐
          │         Priority scorer          │
          │  (weighted composite: sender,    │
-         │   deadline, topic, heat, stale)  │
+         │   deadline, topic, heat, stale   │
+         │   + wiki enrichment signals)     │
          └──────────────┬───────────────────┘
                         │
                         ▼
@@ -159,6 +172,13 @@ Automated triggers that wake the agent on a set cadence:
    │  alert   │ │  queue   │ │  tasks   │ │  digest  │
    │(Slack DM)│ │ (Gmail)  │ │          │ │  queue   │
    └──────────┘ └──────────┘ └──────────┘ └──────────┘
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ Update wiki  │──── Write Person, Project,
+                 │              │     Decision, Pattern, and
+                 │              │     Open Question pages
+                 └──────────────┘
 ```
 
 ### Common schema
@@ -271,7 +291,22 @@ For each classified item:
 
 **When**: 7 AM (morning) / 5 PM (EOD) on weekdays
 **Where**: User's Slack DM
-**Contents**: Structured briefing with prioritized items, meeting prep, and draft queue status
+**Contents**: Structured briefing with prioritized items, wiki-enriched meeting prep, wiki insights, and draft queue status
+
+### 5. Assistant Wiki (Notion)
+
+**When**: Updated at the end of every triage run; maintained during morning digest
+**Where**: Dedicated Notion database ("Assistant Wiki")
+**Contents**: Persistent, compounding knowledge base with 7 page types:
+- **Person** — communication context for individuals (preferences, recent interactions, open items)
+- **Organization** — company/team context (contacts, active workstreams, relationship health)
+- **Project** — project context beyond the PM tool (decisions, risks, lessons, related threads)
+- **Topic** — recurring themes with evolving positions and context
+- **Pattern** — observed behavioral patterns (email rhythms, escalation cycles, volume spikes)
+- **Decision** — important decisions with context, implications, and status
+- **Open Question** — unresolved questions with ownership and timeline
+
+The wiki is the agent's institutional memory. It makes classification more accurate, drafts more contextual, and digests more insightful over time.
 
 ---
 
@@ -280,9 +315,11 @@ For each classified item:
 ### Data handling
 
 - All data processing happens within Anthropic's infrastructure
-- No data is stored outside of the agent's state store (cursors and queues)
-- Full message content is processed in-memory during the session and not persisted
-- Only metadata (IDs, timestamps, tiers, scores) is stored in the state between sessions
+- Short-term state (cursors, queues) is stored in Anthropic's managed state store
+- Long-term knowledge (wiki) is stored in the user's own Notion workspace — the user owns and controls this data
+- Full message content is processed in-memory during the session and not persisted in the state store
+- The wiki stores synthesized context and summaries, never raw message content
+- Only metadata (IDs, timestamps, tiers, scores) is stored in the agent state between sessions
 
 ### Access control
 
@@ -311,6 +348,7 @@ For each classified item:
 | Credential storage | Anthropic encrypted vault | Anthropic |
 | Cron scheduling | Anthropic scheduler | User (via Console) |
 | State store | Anthropic managed storage | Agent (automatic) |
+| Assistant Wiki | User's Notion workspace | Agent (maintains) + User (corrects) |
 | Billing/monitoring | Anthropic Console | User |
 
-**Total infrastructure the user manages: Zero.** Everything runs on Anthropic's platform.
+**Total infrastructure the user manages: One Notion database.** Everything else runs on Anthropic's platform. The wiki lives in the user's Notion workspace — they own the data, the agent maintains it.

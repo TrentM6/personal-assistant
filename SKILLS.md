@@ -11,6 +11,7 @@ Skills are named capabilities the agent can perform. Each skill is a focused rou
 3. [daily_digest](#3-daily_digest)
 4. [task_extraction](#4-task_extraction)
 5. [draft_response](#5-draft_response)
+6. [wiki_maintain](#6-wiki_maintain)
 
 ---
 
@@ -34,36 +35,42 @@ Instructions:
 When invoked in "urgent" mode:
 1. Read the last processing cursor from state
 2. Pull new items from Gmail and Slack only (skip Granola and Notion for speed)
-3. Filter to only:
+3. Quick wiki lookup: check Person pages for any VIP senders found — get their recent context and open items
+4. Filter to only:
    a. Items from senders on the VIP list
    b. Items containing deadline language for today ("by EOD", "today", "ASAP", "before [time]")
    c. Items with more than 3 replies in the last hour (hot threads)
-4. Classify each matching item (should be P0 or P1 only, by definition)
-5. For any P0 items found:
-   a. Draft a response using the draft_response skill
+   d. Items from senders with wiki Pattern pages indicating escalation (e.g., second follow-up)
+5. Classify each matching item (should be P0 or P1 only, by definition)
+6. For any P0 items found:
+   a. Draft a response using the draft_response skill (informed by wiki context)
    b. Send an immediate Slack DM alert to the user with:
       - One-line summary of the item
       - Why it's urgent
       - Suggested action
       - Link to the source (Gmail thread or Slack message)
-6. Update the urgent-scan cursor
-7. Target runtime: under 5 seconds
+      - Wiki context if relevant (e.g., "Sam has followed up twice this week — see wiki")
+7. Update sender Person pages in the wiki with this interaction
+8. Update the urgent-scan cursor
+9. Target runtime: under 5 seconds
 
 When invoked in "full" mode:
 1. Read the last processing cursor from state
 2. Pull new items from ALL four sources (Gmail, Slack, Granola, Notion)
 3. Normalize all items into the common schema
 4. Deduplicate and merge cross-source items
-5. Classify every item into P0/P1/P2/P3
-6. Score items within each tier using the priority scoring weights
-7. Route each item to the appropriate output:
+5. Enrich from wiki: query Person, Project, and Pattern pages for context on senders and topics
+6. Classify every item into P0/P1/P2/P3 (informed by wiki context)
+7. Score items within each tier using the priority scoring weights + wiki enrichment signals
+8. Route each item to the appropriate output:
    - P0: Draft + immediate alert
    - P1: Draft + add to digest queue
    - P2: Add to digest queue
    - P3: Log only
-8. For any Granola meetings found, invoke the task_extraction skill
-9. Update the full-triage cursor
-10. Target runtime: under 30 seconds
+9. For any Granola meetings found, invoke the task_extraction skill
+10. Update the wiki: write new context to Person, Project, Decision, Pattern, and Open Question pages
+11. Update the full-triage cursor
+12. Target runtime: under 30 seconds
 
 Output format (logged for each processed item):
 {
@@ -140,7 +147,14 @@ Instructions:
    a. Draft the follow-up using the draft_response skill
    b. Include the meeting context in the draft
 
-6. Update the meeting processing cursor.
+6. Update the wiki:
+   a. Update Person pages for all meeting participants with dated context from this meeting
+   b. Update Project pages if the meeting related to an active project (new decisions, risks, blockers)
+   c. Create Decision pages for any clear decisions made
+   d. Create or update Open Question pages for unresolved items
+   e. If you notice a recurring pattern (e.g., same blocker raised in 3 consecutive meetings), create a Pattern page
+
+7. Update the meeting processing cursor.
 
 Output format:
 {
@@ -160,7 +174,9 @@ Output format:
   ],
   "follow_ups_drafted": 1,
   "decisions_logged": 2,
-  "open_questions": ["question 1"]
+  "open_questions": ["question 1"],
+  "wiki_pages_updated": 5,
+  "wiki_pages_created": 2
 }
 ```
 
@@ -189,7 +205,14 @@ When variant is "morning":
 
 2. Also pull today's calendar/meetings from available context (Granola scheduled meetings, email invites).
 
-3. Compose the digest as a single Slack message with these sections:
+3. Query the wiki for context enrichment:
+   - Pull Person pages for all meeting attendees today — get recent context, open items, communication preferences
+   - Pull Project pages related to today's meetings and P0/P1 items — get status, risks, recent decisions
+   - Check for Open Question pages that are 7+ days old — surface for resolution
+   - Check for Pattern pages that apply to today (e.g., "Monday morning surge")
+   - Run wiki maintenance: mark stale pages, downgrade confidence, flag orphans
+
+4. Compose the digest as a single Slack message with these sections:
 
    === Section 1: Urgent (P0) ===
    Items requiring immediate attention, sorted by priority score.
@@ -220,16 +243,26 @@ When variant is "morning":
    If no P2 items: omit this section entirely.
 
    === Section 4: Meeting prep ===
-   Today's meetings with relevant context.
+   Today's meetings with rich wiki-sourced context.
    For each meeting:
    - Time and title
-   - Attendees
+   - Attendees (with wiki context: their recent interactions, what they're working on, what they're waiting for)
    - Relevant recent communications with those attendees
    - Last meeting notes (from Granola) if available
    - Any open action items from previous meetings with these people
+   - Relevant Decision pages (decisions that may be referenced in this meeting)
+   - Open Questions that could be raised with this group
    If no meetings today: "No meetings today."
 
-   === Section 5: Draft queue ===
+   === Section 5: Wiki insights ===
+   Notable observations from the knowledge base (include when relevant, omit when empty):
+   - Open Questions unresolved for 7+ days with the responsible person named
+   - People who've been waiting for the user's response (from Person pages' open items)
+   - Pattern observations worth noting (e.g., "This topic has come up 4 times this month")
+   - Stale wiki pages that need the user's review or correction
+   If nothing notable: omit this section entirely.
+
+   === Section 6: Draft queue ===
    All pending drafts organized by priority.
    For each draft:
    - Source (Gmail or Slack)
@@ -247,15 +280,21 @@ When variant is "eod":
 
 1. Gather the current state of all items processed today.
 
-2. Compose the EOD wrap as a Slack message:
+2. Query the wiki for EOD context:
+   - Pull Person pages to identify who's waiting for the user (cross-reference with stale items)
+   - Pull Project pages for tomorrow's meetings to prep the preview
+   - Check for Open Questions that became stale today
+
+3. Compose the EOD wrap as a Slack message:
 
    === Section 1: Still pending ===
    P0/P1 items from today that haven't been resolved (draft not sent, no reply detected).
-   For each: one-line summary, how long it's been pending, link.
+   For each: one-line summary, how long it's been pending, link, and wiki context (e.g., "Sam has been waiting 3 days — contract renewal is in August").
 
    === Section 2: Stale items ===
    Items where someone has been waiting for the user's response for more than 24 hours.
    For each: sender, how long they've been waiting, original message summary.
+   Enrich from wiki: include the relationship context and why this person matters.
    This section is critical — these are the balls being dropped.
 
    === Section 3: Draft status ===
@@ -265,14 +304,20 @@ When variant is "eod":
    - Expired: drafts for items that are no longer relevant
 
    === Section 4: Tomorrow preview ===
-   - Meetings scheduled for tomorrow
+   - Meetings scheduled for tomorrow with wiki context for attendees
    - Known deadlines for tomorrow
    - Items that will become stale by tomorrow if not addressed
+   - Open Questions that could be resolved in tomorrow's meetings
+
+   === Section 5: Wiki health ===
+   - Pages marked stale during today's maintenance
+   - Confidence downgrades applied
+   - New pages created today (quick summary of what the agent learned)
 
    === Footer ===
-   "EOD wrap for [date]. [X] items still pending, [Y] drafts waiting."
+   "EOD wrap for [date]. [X] items still pending, [Y] drafts waiting. Wiki: [Z] pages updated today."
 
-3. Send the composed message to the user's Slack DM.
+4. Send the composed message to the user's Slack DM.
 
 Output format:
 {
@@ -284,6 +329,9 @@ Output format:
   "drafts_pending": 3,
   "stale_items": 1,
   "meetings_today": 4,
+  "wiki_pages_updated": 3,
+  "wiki_pages_stale": 1,
+  "open_questions_flagged": 2,
   "delivered_to": "slack DM",
   "message_ts": "slack message timestamp"
 }
@@ -381,14 +429,24 @@ Instructions:
 
 1. Fetch the full conversation thread from the source.
 
-2. Analyze the conversation:
+2. Query the wiki for sender context:
+   - Look up the sender's Person page: read their communication preferences, recent context, open items
+   - Check for relevant Project pages: current status, recent decisions that might be referenced
+   - Check for relevant Decision pages: if the topic relates to a past decision, reference it in the draft
+   - Check for Open Questions: if the sender is asking about a known open question, note that
+
+3. Analyze the conversation (informed by wiki context):
    - What is being asked or discussed?
    - What information does the sender need?
    - Is this a decision request, information request, scheduling request, or follow-up?
-   - What is the sender's tone and formality level?
+   - What is the sender's tone and formality level? (wiki may have preferences on file)
+   - Is this related to something the sender previously raised? (wiki's recent context)
 
-3. Draft the response following the user's writing style guidelines:
+4. Draft the response following the user's writing style guidelines:
+   - Use the sender's communication preferences from the wiki if available
    - Match the sender's formality level
+   - Reference recent shared context naturally (e.g., "Following up on our discussion about X...")
+   - If the wiki shows a Decision page relevant to the topic, reference the decision
    - Keep it concise (the user will edit before sending)
    - Never make commitments the user hasn't authorized
    - Never share information from other sources without explicit authorization
@@ -430,30 +488,131 @@ Output format:
 
 ---
 
+## 6. wiki_maintain
+
+Dedicated maintenance operations for the wiki. Runs as part of the morning digest but can also be invoked standalone.
+
+### Skill definition
+
+```
+Name: wiki_maintain
+Description: Perform maintenance on the Assistant Wiki — detect stale pages, decay confidence, find contradictions, identify orphans, and clean up resolved items.
+
+Parameters:
+  - operation: "full" | "stale_check" | "lint"
+    - "full": Run all maintenance operations. Used by the morning digest.
+    - "stale_check": Only check for stale pages and confidence decay. Lightweight.
+    - "lint": Deep health check — contradictions, orphans, missing cross-references, merge candidates.
+
+Instructions:
+
+When operation is "full" (runs daily as part of morning digest):
+
+1. Staleness detection:
+   - Query all wiki pages with Status = "Active"
+   - For each page, check "Last updated by agent" date:
+     - 14+ days since last update → set Status to "Stale"
+     - 30+ days → also downgrade Confidence one level (High → Medium → Low)
+     - 60+ days → set Status to "Archived"
+   - Log all status changes for inclusion in the digest
+
+2. Confidence decay:
+   - Pages with Confidence = "High" but no new source contributions in 21+ days → downgrade to "Medium"
+   - Pages with Confidence = "Medium" but no new source contributions in 30+ days → downgrade to "Low"
+   - Pages a human has recently edited are exempt from confidence decay
+
+3. Open Question review:
+   - Query all Open Question pages with Status = "Active"
+   - Flag any open for 30+ days → include in digest for user resolution
+   - If evidence suggests the question has been answered (referenced in a recent Decision or meeting), mark as resolved
+
+4. Pattern validation:
+   - Check Pattern pages with Low confidence — if the pattern hasn't been observed in 30 days, archive it
+   - Check for new patterns worth codifying (look at recent Person and Project page updates for recurring themes)
+
+When operation is "lint" (runs weekly or on-demand):
+
+1. Orphan detection:
+   - Find pages with zero "Related pages" relations
+   - For each orphan, check if obvious connections exist and create them
+   - If no connections can be inferred, flag for user review
+
+2. Contradiction detection:
+   - Scan pages for entries flagged with [contradicts previous entry]
+   - Compile a list for user resolution
+   - Check if any Decision pages have been superseded but not marked as such
+
+3. Merge candidate detection:
+   - Find pages with similar titles or overlapping content
+   - Suggest merges in the digest (don't auto-merge — let the user decide)
+
+4. Source citation audit:
+   - Find pages with entries that lack source citations
+   - Flag these as potentially unreliable
+   - Set confidence to Low if more than 30% of entries lack citations
+
+5. Cross-reference completeness:
+   - For each Person page, check if their Organization page exists and is linked
+   - For each Project page, check if key stakeholders have Person pages
+   - Create missing pages if there's enough information, otherwise flag
+
+Output format:
+{
+  "operation": "full",
+  "pages_checked": 45,
+  "pages_marked_stale": 3,
+  "pages_archived": 1,
+  "confidence_downgrades": 2,
+  "open_questions_flagged": 4,
+  "patterns_archived": 0,
+  "orphans_found": 2,
+  "contradictions_found": 1,
+  "merge_candidates": 0,
+  "cross_references_created": 3
+}
+```
+
+---
+
 ## Skill interaction map
 
-Skills often invoke each other:
+Skills interact with each other and the wiki:
 
 ```
 email_triage (full mode)
+├── READS wiki (Person, Project, Pattern pages for enrichment)
 ├── draft_response (for P0 and P1 items)
+│   └── READS wiki (sender preferences, recent context, decisions)
 ├── task_extraction (for Granola meetings found during triage)
 │   └── [creates Notion tasks]
+├── WRITES wiki (Person, Project, Decision, Pattern, Open Question pages)
 └── [queues items for daily_digest]
 
 email_triage (urgent mode)
-└── draft_response (for P0 items only)
+├── READS wiki (quick Person lookup for VIP context)
+├── draft_response (for P0 items only)
+│   └── READS wiki (sender preferences)
+└── WRITES wiki (Person page updates)
 
 daily_digest (morning)
+├── READS wiki (Person pages for meeting prep, Project pages, Open Questions, Patterns)
+├── wiki_maintain (full) — runs maintenance as part of digest compilation
 ├── reads from digest queue (populated by email_triage)
 └── reads from task list (populated by task_extraction)
 
 daily_digest (eod)
+├── READS wiki (Person pages for stale item context, Project pages for tomorrow preview)
 ├── reads from digest queue
 ├── checks draft status (sent vs pending)
 └── reads tomorrow's calendar
 
 meeting_followup
 ├── task_extraction (for each meeting)
-└── draft_response (for follow-up messages)
+├── draft_response (for follow-up messages)
+└── WRITES wiki (Person, Project, Decision, Open Question, Pattern pages)
+
+wiki_maintain
+├── READS all wiki pages
+├── WRITES status changes, confidence downgrades, cross-references
+└── Reports findings to daily_digest
 ```

@@ -17,6 +17,16 @@ Complete classification rules, priority scoring weights, and action routing logi
 
 Every item ingested by the agent is classified into one of four urgency tiers. Classification happens in a single inference call that evaluates sender, content, context, and timing together.
 
+### Pre-classification: Wiki enrichment
+
+Before applying tier rules, the agent queries the Assistant Wiki for context:
+1. Look up the sender's Person page — get VIP status, relationship, open items, communication patterns
+2. Look up any matching Project pages — get status, deadlines, risks
+3. Check Pattern pages — does a known behavioral pattern apply?
+4. Check Open Question pages — is this related to a known unresolved question?
+
+This context is attached to the item and informs all classification signals below.
+
 ### Tier definitions
 
 #### P0 — Urgent
@@ -24,6 +34,7 @@ Every item ingested by the agent is classified into one of four urgency tiers. C
 
 An item is P0 if ANY of the following are true:
 - Sender is on the VIP list (CEO, founders, board, key clients)
+- Wiki Person page shows sender is in an escalation cycle (Pattern page match)
 - Content contains explicit deadline for today with escalation language
 - Content contains crisis or incident language ("outage", "data breach", "legal issue", "press inquiry")
 - The thread has been escalated (sender references previous unanswered messages with frustration)
@@ -41,8 +52,9 @@ An item is P1 if ANY of the following are true:
 - Is a follow-up to a meeting that happened today (action items, shared notes)
 - Contains a decision request with a deadline this week
 - Is from a direct report requesting guidance or approval
-- Sender has been waiting more than 24 hours for a response
-- References an active project with an approaching milestone
+- Sender has been waiting more than 24 hours for a response (check wiki Person page for open items)
+- References an active project with an approaching milestone (check wiki Project page)
+- Wiki Person page shows open items the user owes this sender
 
 #### P2 — FYI
 **Awareness only. No response needed.**
@@ -209,15 +221,23 @@ Classification: P1 (direct question, client-facing)
 Priority within P1: 52/100 (ranked against other P1 items)
 ```
 
-### Cross-source enrichment
+### Cross-source and wiki enrichment
 
-Before finalizing the score, check for cross-source context:
+Before finalizing the score, check for cross-source and wiki context:
 
 1. **Granola enrichment**: If the sender was in a recent meeting (last 7 days), check if the current message relates to something discussed. If yes, boost topic relevance by +5.
 
 2. **Notion enrichment**: If the topic matches a Notion project, check the project's status and deadline. If the project has a milestone this week, boost deadline proximity by +5.
 
 3. **Cross-channel enrichment**: If the same topic appears in both email and Slack, use the higher score from either source (after merging the items in dedup).
+
+4. **Wiki Person page enrichment**: If the sender's wiki page shows open items waiting for the user's response, add +5 staleness points. If the wiki shows the sender is in an escalation pattern, add +3 thread heat points.
+
+5. **Wiki Project page enrichment**: If the wiki Project page shows the project is at risk or a milestone is approaching, add +5 deadline proximity points.
+
+6. **Wiki Pattern enrichment**: If a Pattern page suggests this type of item is typically low-signal (e.g., "Monday morning catch-up emails"), subtract -3 relevance points. If the pattern suggests escalation, add +3 thread heat points.
+
+7. **Wiki Open Question enrichment**: If the item relates to a known Open Question, add +3 relevance points — someone may be providing the answer.
 
 ---
 
@@ -227,13 +247,13 @@ Each classified and scored item maps to specific output actions.
 
 ### Routing table
 
-| Tier | Draft response? | Slack alert? | Digest inclusion? | Notion task? |
-|------|----------------|-------------|-------------------|-------------|
-| P0 Urgent | Yes — immediate | Yes — Slack DM right away | Yes — in "Urgent" section | Only if meeting-related |
-| P1 Respond | Yes — queued | No | Yes — in "Needs response" section | Only if meeting-related |
-| P2 FYI | No | No | Yes — in "Awareness" section | No |
-| P3 Low | No | No | No (weekly rollup only) | No |
-| Meeting (any tier) | Follow-up drafts if needed | No | Yes — in "Meeting prep" | Yes — action items |
+| Tier | Draft response? | Slack alert? | Digest inclusion? | Notion task? | Wiki update? |
+|------|----------------|-------------|-------------------|-------------|-------------|
+| P0 Urgent | Yes — immediate | Yes — Slack DM right away | Yes — in "Urgent" section | Only if meeting-related | Yes — Person + Project pages |
+| P1 Respond | Yes — queued | No | Yes — in "Needs response" section | Only if meeting-related | Yes — Person + Project pages |
+| P2 FYI | No | No | Yes — in "Awareness" section | No | Yes — Person page if 3+ appearances |
+| P3 Low | No | No | No (weekly rollup only) | No | No |
+| Meeting (any tier) | Follow-up drafts if needed | No | Yes — in "Meeting prep" | Yes — action items | Yes — Person, Project, Decision, Open Question pages |
 
 ### Draft response routing details
 

@@ -44,12 +44,14 @@ Claude Managed Agents have two cost components:
 
 | Operation | Approximate input tokens | Approximate output tokens |
 |-----------|------------------------|-------------------------|
-| System prompt (loaded every session) | ~3,000-5,000 | 0 |
+| System prompt (loaded every session) | ~4,000-6,000 | 0 |
 | Reading 10 email threads | ~5,000-15,000 | 0 |
 | Reading 20 Slack messages | ~2,000-5,000 | 0 |
-| Classifying 10 items | ~500 | ~1,000-2,000 |
-| Drafting 3 responses | ~1,000 | ~800-1,500 |
-| Composing morning digest | ~2,000 | ~1,500-3,000 |
+| Wiki enrichment queries (2-5 pages) | ~1,000-3,000 | 0 |
+| Classifying 10 items (with wiki context) | ~800 | ~1,200-2,500 |
+| Drafting 3 responses (with wiki context) | ~1,500 | ~1,000-2,000 |
+| Composing morning digest (with wiki) | ~3,000 | ~2,000-4,000 |
+| Wiki page updates (1-3 pages) | ~200 | ~500-1,500 |
 
 ---
 
@@ -102,17 +104,19 @@ Monthly total: ~$0.30-$0.80
 | Component | Low estimate | High estimate |
 |-----------|-------------|---------------|
 | Urgent scans | $0.60 | $1.20 |
-| Full triage | $3.60 | $9.60 |
-| Morning digest | $0.50 | $1.50 |
-| EOD wrap | $0.30 | $0.80 |
-| **Subtotal** | **$5.00** | **$13.10** |
+| Full triage | $4.50 | $12.00 |
+| Morning digest (with wiki) | $0.80 | $2.00 |
+| EOD wrap (with wiki) | $0.50 | $1.20 |
+| Wiki maintenance | $0.50 | $1.50 |
+| **Subtotal** | **$6.90** | **$17.90** |
 | Buffer (unexpected spikes) | $2.00 | $5.00 |
-| **Total** | **$7.00** | **$18.00** |
+| **Total** | **$8.90** | **$22.90** |
 
-The higher end of the range ($15-40/month mentioned on the website) accounts for:
+The higher end of the range ($17-45/month) accounts for:
 - Higher email/Slack volume (50+ items per triage instead of 10-20)
 - More draft responses generated (each one uses tokens)
 - Longer meeting transcripts from Granola
+- Wiki read/write operations on every run (~$2-5/month)
 - Using Claude Opus instead of Sonnet
 
 ---

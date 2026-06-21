@@ -8,10 +8,10 @@ The Personal Assistant agent runs on four automated cron schedules plus maintain
 
 | Schedule | Cron expression | Skill invoked | Runtime | Purpose |
 |----------|----------------|---------------|---------|---------|
-| Every 10 minutes | `*/10 * * * *` | `email_triage` (urgent mode) | ~2-5 seconds | VIP + deadline scan only |
-| Every hour | `0 * * * *` | `email_triage` (full mode) | ~15-30 seconds | Full triage, all sources |
-| 7:00 AM weekdays | `0 7 * * 1-5` | `daily_digest` (morning) | ~10-20 seconds | Morning briefing |
-| 5:00 PM weekdays | `0 17 * * 1-5` | `daily_digest` (eod) | ~10-15 seconds | End-of-day wrap |
+| Every 10 minutes | `*/10 * * * *` | `email_triage` (urgent mode) | ~2-5 seconds | VIP + deadline scan, quick wiki lookup |
+| Every hour | `0 * * * *` | `email_triage` (full mode) | ~15-30 seconds | Full triage, all sources, wiki enrich + update |
+| 7:00 AM weekdays | `0 7 * * 1-5` | `daily_digest` (morning) | ~15-25 seconds | Wiki-enriched morning briefing + wiki maintenance |
+| 5:00 PM weekdays | `0 17 * * 1-5` | `daily_digest` (eod) | ~10-20 seconds | EOD wrap with wiki context |
 
 All times are in the user's configured timezone.
 
@@ -228,6 +228,8 @@ The agent maintains state between runs using a cursor system. This is not a cron
 | `draft_registry` | List of created drafts with status | `draft_response` |
 | `last_digest_morning` | Timestamp of last morning digest | `daily_digest` |
 | `last_digest_eod` | Timestamp of last EOD wrap | `daily_digest` |
+| `last_wiki_maintenance` | Timestamp of last wiki maintenance run | `wiki_maintain` |
+| `wiki_database_id` | Notion database ID for the Assistant Wiki | Configuration |
 
 ### How state works
 

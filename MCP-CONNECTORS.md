@@ -252,10 +252,11 @@ The agent uses Notion's MCP tools for:
 
 | Operation | Purpose | Used in |
 |-----------|---------|---------|
-| Query databases | Find recently modified pages, active projects | `email_triage` — topic relevance scoring |
-| Create pages | Create new tasks from meeting action items | `task_extraction` |
-| Update pages | Update task status or properties | `meeting_followup` |
-| Search | Find existing tasks to avoid duplicates | `task_extraction` |
+| Query databases | Find recently modified pages, active projects, wiki pages | `email_triage` — topic relevance scoring + wiki enrichment |
+| Create pages | Create tasks from meetings, create wiki pages | `task_extraction`, `email_triage` (wiki writes) |
+| Update pages | Update task status, update wiki pages with new context | `meeting_followup`, `email_triage` (wiki updates) |
+| Search | Find existing tasks and wiki pages to avoid duplicates | `task_extraction`, `wiki_maintain` |
+| Create relations | Link wiki pages to each other | `email_triage`, `meeting_followup` (wiki cross-references) |
 
 ### Notion-specific notes
 
@@ -264,6 +265,8 @@ The agent uses Notion's MCP tools for:
 - Notion pages include source links back to the original Granola meeting or email/Slack thread
 - The agent reads project databases to understand what topics are actively being worked on
 - Page modifications in Notion are picked up by the hourly triage as "recently modified"
+- **The Agent's wiki lives in Notion** — a dedicated "Assistant Wiki" database where the agent maintains Person, Organization, Project, Topic, Pattern, Decision, and Open Question pages. This is the agent's persistent knowledge base. See [NOTION-WIKI.md](NOTION-WIKI.md) for complete details.
+- Wiki operations add 2-5 Notion API calls per triage run (reads) and 1-3 per run (writes)
 
 ---
 

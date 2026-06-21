@@ -12,12 +12,13 @@ This guide walks you through every step of setting up the Personal Assistant age
 4. [Navigate to Managed Agents](#4-navigate-to-managed-agents)
 5. [Create the Personal Assistant agent](#5-create-the-personal-assistant-agent)
 6. [Configure MCP connectors](#6-configure-mcp-connectors)
-7. [Add the system prompt](#7-add-the-system-prompt)
-8. [Add skills](#8-add-skills)
-9. [Set up cron schedules](#9-set-up-cron-schedules)
-10. [Configure credentials](#10-configure-credentials)
-11. [Test the agent](#11-test-the-agent)
-12. [Go live](#12-go-live)
+7. [Set up the Assistant Wiki in Notion](#7-set-up-the-assistant-wiki-in-notion)
+8. [Add the system prompt](#8-add-the-system-prompt)
+9. [Add skills](#9-add-skills)
+10. [Set up cron schedules](#10-set-up-cron-schedules)
+11. [Configure credentials](#11-configure-credentials)
+12. [Test the agent](#12-test-the-agent)
+13. [Go live](#13-go-live)
 
 ---
 
@@ -147,7 +148,71 @@ The agent needs four MCP (Model Context Protocol) connectors to access your data
 
 ---
 
-## 7. Add the system prompt
+## 7. Set up the Assistant Wiki in Notion
+
+The wiki is the agent's persistent knowledge base — a Notion database where it stores what it learns about people, projects, patterns, and decisions over time. This must be set up before adding the system prompt because the prompt references the wiki database ID.
+
+### Create the database
+
+1. Open **Notion**
+2. Create a new **full-page database** called **"Assistant Wiki"**
+3. Add these properties:
+
+| Property | Type | How to set it up |
+|----------|------|-----------------|
+| Title | Title | Already exists by default |
+| Page type | Select | Add options: Person, Organization, Project, Topic, Pattern, Decision, Open question |
+| Status | Select | Add options: Active, Stale, Archived |
+| Last updated by agent | Date | Create as date property |
+| Last verified | Date | Create as date property |
+| Confidence | Select | Add options: High, Medium, Low |
+| Related pages | Relation | Create as self-referencing relation (relates to the same database) |
+| Source count | Number | Create as number property |
+| Tags | Multi-select | Leave empty — the agent will populate tags as it runs |
+
+### Create database views
+
+Add these saved views for easy browsing:
+
+1. **All active**: Filter by Status = Active, sort by Last updated (newest first)
+2. **People**: Filter by Page type = Person, sort by Title A-Z
+3. **Projects**: Filter by Page type = Project, sort by Last updated
+4. **Stale pages**: Filter by Status = Stale, sort by Last verified (oldest first)
+5. **Low confidence**: Filter by Confidence = Low, sort by Last updated
+
+### Seed with initial pages
+
+Create starter pages for your most important contacts and projects:
+
+1. **VIP contacts**: Create a Person page for each VIP. Include their email, Slack handle, role, and any context you know about their communication style. The agent will enrich these over time.
+2. **Active projects**: Create a Project page for each active project. Include current status, key deadlines, and stakeholders.
+3. **Key organizations**: Create Organization pages for your company and top clients/partners.
+
+You don't need to write perfect pages — a few bullet points is enough. The agent will build on whatever you provide.
+
+### Get the database ID
+
+You'll need the Notion database ID for the system prompt:
+
+1. Open the Assistant Wiki database in Notion
+2. Click **Share** > **Copy link**
+3. The URL looks like: `https://notion.so/yourworkspace/abc123def456?v=...`
+4. The database ID is the long alphanumeric string before the `?` — in this example, `abc123def456`
+5. Use this as `{{WIKI_DATABASE_ID}}` when you paste the system prompt
+
+### Verify Notion MCP access
+
+Make sure the Notion MCP connector (set up in step 6) has access to this database:
+
+1. In your agent's MCP connectors, check the Notion connection
+2. If you connected with "All pages" access, you're good
+3. If you connected with specific pages, go back and add the Assistant Wiki database
+
+See [NOTION-WIKI.md](NOTION-WIKI.md) for the complete wiki documentation including all page type templates, write rules, and maintenance operations.
+
+---
+
+## 8. Add the system prompt
 
 1. In your agent's configuration, find the **System Prompt** section
 2. Copy the entire contents of [SYSTEM-PROMPT.md](SYSTEM-PROMPT.md)
@@ -161,7 +226,7 @@ The agent needs four MCP (Model Context Protocol) connectors to access your data
 
 ---
 
-## 8. Add skills
+## 9. Add skills
 
 Skills are named capabilities that the agent can invoke. Each skill is a focused routine with its own rules and output format.
 
@@ -172,18 +237,19 @@ Skills are named capabilities that the agent can invoke. Each skill is a focused
    - Paste the skill's **instructions** from the skills file
    - Set any **parameters** the skill requires
    - Click **Save**
-3. The five core skills to add are:
+3. The six core skills to add are:
    - `email_triage`
    - `meeting_followup`
    - `daily_digest`
    - `task_extraction`
    - `draft_response`
+   - `wiki_maintain`
 
 See [SKILLS.md](SKILLS.md) for the complete skill definitions.
 
 ---
 
-## 9. Set up cron schedules
+## 10. Set up cron schedules
 
 Cron schedules automatically wake the agent on a set cadence.
 
@@ -209,7 +275,7 @@ See [CRON-SCHEDULES.md](CRON-SCHEDULES.md) for complete details.
 
 ---
 
-## 10. Configure credentials
+## 11. Configure credentials
 
 All credentials are managed through OAuth — you don't store any passwords or API keys directly.
 
@@ -229,7 +295,7 @@ All credentials are managed through OAuth — you don't store any passwords or A
 
 ---
 
-## 11. Test the agent
+## 12. Test the agent
 
 Before going live, test each component:
 
@@ -256,14 +322,23 @@ Before going live, test each component:
 2. Check your Slack DMs for the digest message
 3. Verify it includes the right sections and formatting
 
-### Test 4: Verify task extraction
+### Test 4: Verify wiki updates
+
+1. After triggering a full triage (Test 1), check the Assistant Wiki database in Notion
+2. The agent should have created or updated Person pages for senders it encountered
+3. Check that pages include dated context entries with source citations
+4. Verify cross-references: Person pages should link to related Project pages
+5. Check the agent logs — you should see wiki read and write operations logged
+
+### Test 5: Verify task extraction
 
 1. If you have recent Granola meeting notes with action items, trigger `task_extraction`
 2. Check that tasks appear in your Notion database with correct owners and deadlines
+3. Check that the wiki was updated: Person pages for meeting attendees should have new context, and any decisions should have Decision pages
 
 ---
 
-## 12. Go live
+## 13. Go live
 
 Once testing is complete:
 

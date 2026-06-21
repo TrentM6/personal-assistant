@@ -1,6 +1,6 @@
 # Configuration
 
-How to customize every aspect of the Personal Assistant agent. All configuration is done by editing the system prompt in the Claude Console — there's no separate config file.
+How to customize every aspect of the Personal Assistant agent. Most configuration is done by editing the system prompt in the Claude Console. The wiki configuration is done in Notion.
 
 ---
 
@@ -13,6 +13,7 @@ How to customize every aspect of the Personal Assistant agent. All configuration
 5. [Digest template](#5-digest-template)
 6. [Schedule tuning](#6-schedule-tuning)
 7. [Classification tuning](#7-classification-tuning)
+8. [Wiki tuning](#8-wiki-tuning)
 
 ---
 
@@ -238,7 +239,8 @@ The digest template is built into the `daily_digest` skill (see [SKILLS.md](SKIL
 - Urgent (P0) — always included if items exist
 - Needs response (P1) — always included if items exist
 - For your awareness (P2) — can be excluded if too noisy
-- Meeting prep — can be excluded if you prefer to prep manually
+- Meeting prep — always included; enriched with wiki context for attendees and projects
+- Wiki insights — included when notable observations exist; can be excluded
 - Draft queue — always included
 
 **Delivery channel:**
@@ -357,3 +359,66 @@ Priority scoring weight overrides:
 - Thread heat: 15% (unchanged)
 - Staleness: 10% (unchanged)
 ```
+
+---
+
+## 8. Wiki tuning
+
+Control how the Agent's knowledge base grows and is maintained.
+
+### Page creation threshold
+
+By default, the agent creates a Person page after seeing a sender 3 times in 7 days. Adjust in the system prompt:
+
+```
+Wiki adjustments:
+- Create Person pages after 2 appearances (more aggressive — builds knowledge faster, more pages)
+- Create Person pages after 5 appearances (more conservative — fewer pages, only regular contacts)
+```
+
+### Staleness thresholds
+
+Default: pages go stale after 14 days, archived after 60 days. Adjust:
+
+```
+Wiki staleness overrides:
+- Mark pages stale after 7 days (aggressive — keeps the wiki very current)
+- Mark pages stale after 30 days (relaxed — less maintenance noise)
+- Archive after 90 days instead of 60 (for slower-moving projects)
+```
+
+### Confidence decay
+
+Default: High → Medium after 21 days without reinforcement, Medium → Low after 30 days. Adjust:
+
+```
+Wiki confidence overrides:
+- High → Medium after 14 days (faster decay — more conservative about old information)
+- High → Medium after 30 days (slower decay — trust information longer)
+```
+
+### Wiki sections in digest
+
+Control whether and how wiki insights appear in digests:
+
+```
+Wiki digest preferences:
+- Include "Wiki insights" section in morning digest: Yes / No
+- Include "Wiki health" section in EOD wrap: Yes / No
+- Maximum open questions to surface per digest: 3 (default) / 5 / 10
+- Show wiki page creation summaries in EOD: Yes (default) / No
+```
+
+### Manual wiki maintenance
+
+Things you should do periodically as the human:
+
+1. **Weekly (5 min)**: Scan the "Stale pages" view in Notion. Archive pages that are no longer relevant. Correct any inaccuracies you spot.
+
+2. **Monthly (15 min)**: Review the "Low confidence" view. Either verify the information (which resets confidence to High) or archive the page. Merge any duplicate pages the agent flagged.
+
+3. **When projects end**: Mark the Project page as "Archived". This stops it from influencing topic relevance scoring.
+
+4. **When contacts change**: Update Person pages for people who've changed roles, left companies, or whose importance has changed. Update the VIP list accordingly.
+
+5. **Resolve Open Questions**: When the agent surfaces old Open Questions in the digest, mark them as resolved if they've been answered, or actively pursue the answer if they haven't.
