@@ -2,7 +2,7 @@
 
 **Your inbox, triaged by an agent that never sleeps.**
 
-A Claude Managed Agent that integrates with Gmail, Slack, Granola, and Notion. It classifies communications by urgency, drafts responses, delivers daily briefings, and maintains a persistent knowledge base that compounds over time — all hosted by Anthropic with no infrastructure to manage.
+A Claude Managed Agent that integrates with Gmail, Slack, Granola, and Notion. It classifies communications by urgency, drafts responses, delivers daily briefings, and maintains a persistent knowledge base that compounds over time - all hosted by Anthropic with no infrastructure to manage.
 
 ---
 
@@ -16,7 +16,7 @@ A Claude Managed Agent that integrates with Gmail, Slack, Granola, and Notion. I
 | [RULES.md](RULES.md) | Classification rules, priority scoring, and routing logic |
 | [MCP-CONNECTORS.md](MCP-CONNECTORS.md) | How to set up each MCP connector (Gmail, Slack, Granola, Notion) |
 | [CRON-SCHEDULES.md](CRON-SCHEDULES.md) | All cron triggers with exact schedules and what they do |
-| [NOTION-WIKI.md](NOTION-WIKI.md) | The agent's persistent knowledge base — schema, page types, read/write operations |
+| [NOTION-WIKI.md](NOTION-WIKI.md) | The agent's persistent knowledge base - schema, page types, read/write operations |
 | [CONFIGURATION.md](CONFIGURATION.md) | How to customize VIPs, channels, projects, writing style, and digest format |
 | [COST-MANAGEMENT.md](COST-MANAGEMENT.md) | Detailed cost breakdown, budget setup, and monitoring |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture overview and data flow |
@@ -39,7 +39,7 @@ Notion ─┘                                      │             ├── Dai
                                                          Decisions, Open Questions
 ```
 
-The agent maintains a **persistent wiki** in Notion — a compounding knowledge base of people, projects, patterns, and decisions that makes it smarter with every run.
+The agent maintains a **persistent wiki** in Notion - a compounding knowledge base of people, projects, patterns, and decisions that makes it smarter with every run.
 
 **Key constraint: Drafts, never sends.** All responses are staged for human review. Nothing is sent without your approval.
 
