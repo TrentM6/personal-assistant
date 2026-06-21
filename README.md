@@ -4,8 +4,6 @@
 
 A Claude Managed Agent that integrates with Gmail, Slack, Granola, and Notion. It classifies communications by urgency, drafts responses, delivers daily briefings, and maintains a persistent knowledge base that compounds over time — all hosted by Anthropic with no infrastructure to manage.
 
-Built by [Baseline Studio](https://baselinestudio.design/personal-assistant).
-
 ---
 
 ## What's in this repo
@@ -64,8 +62,3 @@ The agent maintains a **persistent wiki** in Notion — a compounding knowledge 
 
 ~$8-20/month with model delegation (Sonnet for classification/drafting, Haiku for wiki operations). Wiki ops cost ~$0.50-1.50/month on Haiku (vs. ~$2-5 on Sonnet). Higher volumes or Opus model: $20-35/month.
 
----
-
-## License
-
-This project documentation is provided by Baseline Studio for client use. See [baselinestudio.design](https://baselinestudio.design) for details.
