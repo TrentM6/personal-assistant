@@ -1,19 +1,22 @@
 # Cron Schedules
 
-The Personal Assistant agent runs on four automated cron schedules plus maintains a persistent state store. Each trigger wakes the agent, runs a specific skill, and puts it back to sleep.
+The Personal Assistant agent runs on five automated cron schedules plus maintains a persistent state store. Each trigger wakes the agent, runs a specific skill, and puts it back to sleep.
 
 ---
 
 ## Overview
 
-| Schedule | Cron expression | Skill invoked | Runtime | Purpose |
-|----------|----------------|---------------|---------|---------|
-| Every 10 minutes | `*/10 * * * *` | `email_triage` (urgent mode) | ~2-5 seconds | VIP + deadline scan, quick wiki lookup |
-| Every hour | `0 * * * *` | `email_triage` (full mode) | ~15-30 seconds | Full triage, all sources, wiki enrich + update |
-| 7:00 AM weekdays | `0 7 * * 1-5` | `daily_digest` (morning) | ~15-25 seconds | Wiki-enriched morning briefing + wiki maintenance |
-| 5:00 PM weekdays | `0 17 * * 1-5` | `daily_digest` (eod) | ~10-20 seconds | EOD wrap with wiki context |
+| Schedule | Cron expression | Skill invoked | Model | Runtime | Purpose |
+|----------|----------------|---------------|-------|---------|---------|
+| Every 10 minutes | `*/10 * * * *` | `email_triage` (urgent mode) | Sonnet | ~2-5 seconds | VIP + deadline scan, quick wiki lookup |
+| Every hour | `0 * * * *` | `email_triage` (full mode) | Sonnet | ~15-30 seconds | Full triage, all sources, wiki enrich + update |
+| 6:45 AM weekdays | `45 6 * * 1-5` | `wiki_maintain` (full) | Haiku | ~5-10 seconds | Wiki maintenance — staleness, confidence decay, lint |
+| 7:00 AM weekdays | `0 7 * * 1-5` | `daily_digest` (morning) | Sonnet | ~10-20 seconds | Morning briefing (reads wiki maintenance results) |
+| 5:00 PM weekdays | `0 17 * * 1-5` | `daily_digest` (eod) | Sonnet | ~10-20 seconds | EOD wrap with wiki context |
 
 All times are in the user's configured timezone.
+
+**Model delegation**: Wiki maintenance runs on Haiku (cheaper, structured operations). Everything else runs on Sonnet (classification, drafting, digest composition require nuanced judgment).
 
 ---
 
@@ -119,7 +122,60 @@ If costs are too high:
 
 ---
 
-## Schedule 3: Morning digest (7:00 AM weekdays)
+## Schedule 3: Wiki maintenance (6:45 AM weekdays)
+
+### Cron expression
+```
+45 6 * * 1-5
+```
+
+### Model
+
+**Haiku 4** — wiki maintenance is structured, mechanical work (database queries, date comparisons, status updates). Haiku handles it accurately at ~75% lower token cost than Sonnet.
+
+### What it does
+
+Runs all wiki maintenance operations 15 minutes before the morning digest, so maintenance results are ready when the digest compiles:
+
+1. **Staleness detection**: Marks pages as Stale (14+ days) or Archived (60+ days)
+2. **Confidence decay**: Downgrades confidence for pages without new source contributions
+3. **Open Question review**: Flags questions open for 30+ days
+4. **Pattern validation**: Archives patterns not observed recently
+5. Writes a maintenance summary to state (read by the 7 AM morning digest)
+
+### Configuration in Claude Console
+
+1. Go to your agent's **Schedules** section
+2. Click **Add Schedule**
+3. Set:
+   - **Name**: `Wiki maintenance`
+   - **Cron expression**: `45 6 * * 1-5`
+   - **Timezone**: (your timezone)
+   - **Model override**: `Claude Haiku 4` (if supported — otherwise set in the skill config)
+   - **Skill**: `wiki_maintain`
+   - **Parameters**: `{ "operation": "full" }`
+4. Click **Save**
+
+### Why 6:45 AM?
+
+This runs 15 minutes before the morning digest (7:00 AM). The maintenance results — stale pages, open questions, confidence changes — are written to state and read by the digest. The digest then includes a "Wiki health" section summarizing what maintenance found, without having to run the maintenance itself.
+
+### Cost impact
+
+- Each run: ~5-10 seconds
+- 22 runs/month (weekdays only)
+- **Haiku pricing**: Input $0.80/1M tokens, Output $4.00/1M tokens (~75% cheaper than Sonnet)
+- Token usage: ~2,000-5,000 input, ~500-1,500 output per run
+- **Monthly estimate: $0.15-$0.50** (was $0.50-1.50 when wiki maintenance ran on Sonnet inside the digest)
+
+### Tuning
+
+- Add a weekly deep lint: `0 6 * * 1` (Mondays at 6 AM, `{ "operation": "lint" }`)
+- Skip weekends if wiki volume is low (already weekday-only by default)
+
+---
+
+## Schedule 4: Morning digest (7:00 AM weekdays)
 
 ### Cron expression
 ```
@@ -128,17 +184,19 @@ If costs are too high:
 
 ### What it does
 
-Compiles and delivers the morning briefing:
+Compiles and delivers the morning briefing. Wiki maintenance has already run at 6:45 AM, so the digest reads maintenance results rather than running maintenance itself:
 
 1. Gathers all items processed since the previous morning digest
 2. Pulls today's meeting schedule
-3. Composes a structured Slack message with:
+3. Reads wiki maintenance results from the 6:45 AM run
+4. Composes a structured Slack message with:
    - Urgent items (P0)
    - Items needing response (P1)
    - FYI items (P2)
-   - Meeting prep for today
+   - Meeting prep for today (enriched with wiki context)
+   - Wiki insights and health summary
    - Pending draft queue
-4. Sends to the user's Slack DM
+5. Sends to the user's Slack DM
 
 ### Configuration in Claude Console
 
@@ -154,8 +212,8 @@ Compiles and delivers the morning briefing:
 
 ### Customizing the time
 
-- Earlier morning: `0 6 * * 1-5` (6 AM)
-- Later morning: `0 8 * * 1-5` (8 AM)
+- Earlier morning: `0 6 * * 1-5` (6 AM) — also move wiki maintenance earlier (e.g., `45 5 * * 1-5`)
+- Later morning: `0 8 * * 1-5` (8 AM) — also move wiki maintenance (e.g., `45 7 * * 1-5`)
 - Include weekends: `0 7 * * *` (every day)
 - Different times on different days: Set up multiple schedules
 
@@ -163,12 +221,13 @@ Compiles and delivers the morning briefing:
 
 - Each run: ~10-20 seconds
 - 5 runs/week (weekdays only)
-- Moderate token usage (composing the digest message)
-- **Monthly estimate: $1-3**
+- Moderate token usage (composing the digest message, reading wiki context)
+- Cheaper than before: wiki maintenance is no longer part of this session
+- **Monthly estimate: $0.80-$2.00**
 
 ---
 
-## Schedule 4: EOD wrap (5:00 PM weekdays)
+## Schedule 5: EOD wrap (5:00 PM weekdays)
 
 ### Cron expression
 ```

@@ -425,7 +425,9 @@ The wiki enriches the digest:
 
 ### Automated maintenance (agent-driven)
 
-**Staleness detection** (runs during morning digest):
+All automated maintenance runs on **Claude Haiku 4** via a dedicated cron at 6:45 AM (before the morning digest). These are structured, mechanical operations — database queries, date comparisons, status updates — that Haiku handles accurately at ~75% lower cost than Sonnet.
+
+**Staleness detection** (runs at 6:45 AM via `wiki_maintain` cron):
 - Pages not updated in 14 days → Status set to "Stale"
 - Pages not updated in 30 days → Confidence downgraded one level
 - Pages not updated in 60 days → Status set to "Archived" (but not deleted)
@@ -583,10 +585,11 @@ Make sure the Notion MCP connector has read + write access to the Assistant Wiki
 
 ### Estimated cost impact
 
-The wiki adds Notion API calls to every triage run:
+The wiki adds Notion API calls to every triage run. All wiki operations run on **Haiku** for cost efficiency:
 - **Read operations**: 2-5 queries per run (searching for sender, project, patterns)
 - **Write operations**: 1-3 page creates/updates per run (only when new context is found)
+- **Maintenance**: Dedicated 6:45 AM cron on Haiku (staleness, confidence, lint)
 - **Token impact**: ~500-1,500 additional tokens per run for wiki read/write
-- **Monthly cost increase**: ~$2-5/month
+- **Monthly cost increase**: ~$0.50-1.50/month (on Haiku — would be ~$2-5/month on Sonnet)
 
-This is modest for the value it provides. The wiki makes the agent meaningfully smarter over time.
+This is modest for the value it provides. The wiki makes the agent meaningfully smarter over time. Model delegation to Haiku keeps wiki costs at ~75% less than if everything ran on Sonnet.

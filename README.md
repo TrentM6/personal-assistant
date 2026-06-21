@@ -62,7 +62,7 @@ The agent maintains a **persistent wiki** in Notion — a compounding knowledge 
 
 ## Estimated cost
 
-~$17-45/month based on $0.08/session-hour + token usage. Includes wiki read/write operations (~$2-5/month). Urgent scans take ~2s, full triage ~15-30s.
+~$8-20/month with model delegation (Sonnet for classification/drafting, Haiku for wiki operations). Wiki ops cost ~$0.50-1.50/month on Haiku (vs. ~$2-5 on Sonnet). Higher volumes or Opus model: $20-35/month.
 
 ---
 

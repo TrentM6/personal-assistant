@@ -116,9 +116,9 @@ This prevents runaway costs if something goes wrong:
    - **Name**: `Personal Assistant`
    - **Description**: `Triages Gmail, Slack, Granola, and Notion. Classifies by urgency, drafts responses, delivers daily briefings.`
 3. Select the **Model**:
-   - Choose **Claude Sonnet 4** for the best balance of speed and capability
-   - Claude Sonnet is recommended because the agent runs frequently (every 10 min for urgent scans) and needs to be fast and cost-effective
-   - Claude Opus is available if you want maximum quality on classification decisions, but costs more
+   - Choose **Claude Sonnet 4** as the primary model — best balance of speed and capability for classification, scoring, and drafting
+   - The wiki maintenance cron (step 10) will use **Claude Haiku 4** — wiki operations are structured and mechanical, so Haiku handles them at ~75% lower cost
+   - Claude Opus is available if you want maximum quality on classification decisions, but costs 5x more than Sonnet
 4. Click **Create** to save the initial configuration
 
 ---
@@ -256,18 +256,20 @@ Cron schedules automatically wake the agent on a set cadence.
 1. In your agent's configuration, find the **Triggers** or **Schedules** section
 2. Add each cron trigger:
 
-| Schedule | Cron Expression | Purpose |
-|----------|----------------|---------|
-| Every 10 minutes | `*/10 * * * *` | Urgent scan — VIP senders + deadlines only |
-| Every hour | `0 * * * *` | Full triage — all 4 sources, complete pipeline |
-| 7:00 AM weekdays | `0 7 * * 1-5` | Morning digest — compiled briefing via Slack |
-| 5:00 PM weekdays | `0 17 * * 1-5` | EOD wrap — stale items, pending drafts, tomorrow preview |
+| Schedule | Cron Expression | Skill | Model | Purpose |
+|----------|----------------|-------|-------|---------|
+| Every 10 minutes | `*/10 * * * *` | `email_triage` (urgent) | Sonnet | Urgent scan — VIP senders + deadlines only |
+| Every hour | `0 * * * *` | `email_triage` (full) | Sonnet | Full triage — all 4 sources, complete pipeline |
+| 6:45 AM weekdays | `45 6 * * 1-5` | `wiki_maintain` (full) | **Haiku** | Wiki maintenance — runs before digest |
+| 7:00 AM weekdays | `0 7 * * 1-5` | `daily_digest` (morning) | Sonnet | Morning digest — reads wiki maintenance results |
+| 5:00 PM weekdays | `0 17 * * 1-5` | `daily_digest` (eod) | Sonnet | EOD wrap — stale items, pending drafts, tomorrow preview |
 
-3. For each trigger, set the **skill** it should invoke:
-   - 10-min trigger → `email_triage` (urgent mode)
-   - Hourly trigger → `email_triage` (full mode)
-   - 7 AM trigger → `daily_digest`
-   - 5 PM trigger → `daily_digest` (EOD variant)
+3. For each trigger, set the **skill** and **model**:
+   - 10-min trigger → `email_triage` (urgent mode) — Sonnet
+   - Hourly trigger → `email_triage` (full mode) — Sonnet
+   - 6:45 AM trigger → `wiki_maintain` (full) — **Haiku** (set model override if supported)
+   - 7 AM trigger → `daily_digest` (morning) — Sonnet
+   - 5 PM trigger → `daily_digest` (EOD) — Sonnet
 
 4. Set the **timezone** for all schedule-based triggers to match the user's timezone
 

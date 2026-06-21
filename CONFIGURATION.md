@@ -366,6 +366,16 @@ Priority scoring weight overrides:
 
 Control how the Agent's knowledge base grows and is maintained.
 
+### Model for wiki operations
+
+By default, wiki operations (reads, writes, maintenance) run on **Claude Haiku 4** for cost efficiency. This is appropriate because wiki tasks are structured and mechanical — querying a database, appending dated entries, checking staleness thresholds.
+
+If you notice wiki quality issues (missing cross-references, poor page summaries), you can upgrade wiki operations to Sonnet:
+- Change the wiki maintenance cron's model override from Haiku to Sonnet
+- This will increase wiki-related costs by ~3-4x (~$0.50-1.50/month → ~$2-5/month)
+
+Do NOT downgrade classification, drafting, or digest composition to Haiku — those tasks require nuanced judgment that only Sonnet (or Opus) can reliably provide.
+
 ### Page creation threshold
 
 By default, the agent creates a Person page after seeing a sender 3 times in 7 days. Adjust in the system prompt:

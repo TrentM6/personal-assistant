@@ -210,7 +210,7 @@ When variant is "morning":
    - Pull Project pages related to today's meetings and P0/P1 items — get status, risks, recent decisions
    - Check for Open Question pages that are 7+ days old — surface for resolution
    - Check for Pattern pages that apply to today (e.g., "Monday morning surge")
-   - Run wiki maintenance: mark stale pages, downgrade confidence, flag orphans
+   - Read wiki maintenance results from the 6:45 AM `wiki_maintain` run (staleness, confidence changes, flags) — do NOT run maintenance here, it already ran on Haiku
 
 4. Compose the digest as a single Slack message with these sections:
 
@@ -498,6 +498,8 @@ Dedicated maintenance operations for the wiki. Runs as part of the morning diges
 Name: wiki_maintain
 Description: Perform maintenance on the Assistant Wiki — detect stale pages, decay confidence, find contradictions, identify orphans, and clean up resolved items.
 
+Model: Haiku 4 — all wiki maintenance operations are structured and mechanical. Haiku handles them accurately at ~75% lower token cost than Sonnet. This skill should always run on Haiku, whether invoked by its own cron or called by another skill.
+
 Parameters:
   - operation: "full" | "stale_check" | "lint"
     - "full": Run all maintenance operations. Used by the morning digest.
@@ -576,43 +578,45 @@ Output format:
 
 ## Skill interaction map
 
-Skills interact with each other and the wiki:
+Skills interact with each other and the wiki. Model annotations show which model handles each operation:
 
 ```
-email_triage (full mode)
-├── READS wiki (Person, Project, Pattern pages for enrichment)
-├── draft_response (for P0 and P1 items)
-│   └── READS wiki (sender preferences, recent context, decisions)
-├── task_extraction (for Granola meetings found during triage)
+email_triage (full mode) [Sonnet]
+├── READS wiki [Haiku] (Person, Project, Pattern pages for enrichment)
+├── draft_response [Sonnet] (for P0 and P1 items)
+│   └── READS wiki [Haiku] (sender preferences, recent context, decisions)
+├── task_extraction [Sonnet] (for Granola meetings found during triage)
 │   └── [creates Notion tasks]
-├── WRITES wiki (Person, Project, Decision, Pattern, Open Question pages)
+├── WRITES wiki [Haiku] (Person, Project, Decision, Pattern, Open Question pages)
 └── [queues items for daily_digest]
 
-email_triage (urgent mode)
-├── READS wiki (quick Person lookup for VIP context)
-├── draft_response (for P0 items only)
-│   └── READS wiki (sender preferences)
-└── WRITES wiki (Person page updates)
+email_triage (urgent mode) [Sonnet]
+├── READS wiki [Haiku] (quick Person lookup for VIP context)
+├── draft_response [Sonnet] (for P0 items only)
+│   └── READS wiki [Haiku] (sender preferences)
+└── WRITES wiki [Haiku] (Person page updates)
 
-daily_digest (morning)
-├── READS wiki (Person pages for meeting prep, Project pages, Open Questions, Patterns)
-├── wiki_maintain (full) — runs maintenance as part of digest compilation
+daily_digest (morning) [Sonnet]
+├── READS wiki [Haiku] (Person pages for meeting prep, Project pages, Open Questions, Patterns)
+├── READS wiki_maintain results (maintenance runs on its own cron at 6:45 AM)
 ├── reads from digest queue (populated by email_triage)
 └── reads from task list (populated by task_extraction)
 
-daily_digest (eod)
-├── READS wiki (Person pages for stale item context, Project pages for tomorrow preview)
+daily_digest (eod) [Sonnet]
+├── READS wiki [Haiku] (Person pages for stale item context, Project pages for tomorrow preview)
 ├── reads from digest queue
 ├── checks draft status (sent vs pending)
 └── reads tomorrow's calendar
 
-meeting_followup
-├── task_extraction (for each meeting)
-├── draft_response (for follow-up messages)
-└── WRITES wiki (Person, Project, Decision, Open Question, Pattern pages)
+meeting_followup [Sonnet]
+├── task_extraction [Sonnet] (for each meeting)
+├── draft_response [Sonnet] (for follow-up messages)
+└── WRITES wiki [Haiku] (Person, Project, Decision, Open Question, Pattern pages)
 
-wiki_maintain
+wiki_maintain [Haiku — dedicated 6:45 AM cron]
 ├── READS all wiki pages
 ├── WRITES status changes, confidence downgrades, cross-references
-└── Reports findings to daily_digest
+└── Reports findings (read by morning digest at 7:00 AM)
 ```
+
+**Model delegation summary**: Sonnet handles judgment-heavy work (classification, scoring, drafting, digest composition). Haiku handles all wiki I/O — reads, writes, and maintenance. This cuts wiki-related token costs by ~75%.

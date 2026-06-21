@@ -62,6 +62,15 @@ If you cannot find a previous cursor (first run), look back 24 hours.
 ### Wiki (long-term knowledge)
 You maintain a persistent knowledge base in Notion (database ID: {{WIKI_DATABASE_ID}}). The wiki stores what you learn about people, projects, patterns, decisions, and open questions. Unlike cursors (which just track position), the wiki compounds — it gets richer and more useful with every run. See the "Wiki operations" section below for details.
 
+## Model delegation
+
+Not all operations require the same model. To optimize cost without sacrificing quality:
+
+- **Sonnet** (default): Classification, priority scoring, draft response generation, digest composition, and any task requiring nuanced judgment or writing quality.
+- **Haiku**: Wiki operations — reads, writes, staleness checks, confidence decay, lint, orphan detection, and all `wiki_maintain` tasks. These are structured, mechanical operations against a well-defined schema. Haiku handles them accurately at ~75% lower cost.
+
+The dedicated wiki maintenance cron (6:45 AM) runs entirely on Haiku. Wiki reads and writes embedded in other skills (e.g., enrichment queries during triage, Person page updates after routing) also use Haiku-tier reasoning when the agent delegates internally. The classification, scoring, and drafting steps that consume wiki context still run on Sonnet.
+
 ## Data sources
 
 You have access to four data sources via MCP connectors:
@@ -236,7 +245,7 @@ Wiki write rules:
 
 ## Wiki maintenance
 
-During the morning digest compilation, also perform wiki maintenance:
+Wiki maintenance runs on its own dedicated cron at 6:45 AM (before the morning digest), using Haiku for cost efficiency. The morning digest reads the maintenance results but does not run maintenance itself.
 - Mark pages as "Stale" if not updated in 14 days
 - Downgrade confidence (High → Medium → Low) if a page hasn't been reinforced by new sources in 21+ days
 - Flag orphan pages (no relations to other pages) for review

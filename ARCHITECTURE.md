@@ -68,14 +68,16 @@ Named capabilities the agent can perform. Each skill is a focused routine with i
 - Rules and constraints
 
 Six core skills:
-| Skill | Trigger | Purpose |
-|-------|---------|---------|
-| `email_triage` | Every 10 min (urgent) / every hour (full) | Pull, enrich from wiki, classify, score, route items, update wiki |
-| `meeting_followup` | Called by email_triage when meetings found | Process meeting transcripts, update wiki with decisions and context |
-| `daily_digest` | 7 AM (morning) / 5 PM (EOD) | Compile wiki-enriched briefings, run wiki maintenance |
-| `task_extraction` | Called by meeting_followup | Create Notion tasks from meetings |
-| `draft_response` | Called by email_triage for P0/P1 items | Generate wiki-informed draft replies |
-| `wiki_maintain` | Called by daily_digest / weekly standalone | Stale detection, confidence decay, lint, orphan/contradiction detection |
+| Skill | Model | Trigger | Purpose |
+|-------|-------|---------|---------|
+| `email_triage` | Sonnet | Every 10 min (urgent) / every hour (full) | Pull, enrich from wiki, classify, score, route items, update wiki |
+| `meeting_followup` | Sonnet | Called by email_triage when meetings found | Process meeting transcripts, update wiki with decisions and context |
+| `daily_digest` | Sonnet | 7 AM (morning) / 5 PM (EOD) | Compile wiki-enriched briefings (reads wiki maintenance results) |
+| `task_extraction` | Sonnet | Called by meeting_followup | Create Notion tasks from meetings |
+| `draft_response` | Sonnet | Called by email_triage for P0/P1 items | Generate wiki-informed draft replies |
+| `wiki_maintain` | **Haiku** | 6:45 AM weekdays (own cron) / weekly lint | Stale detection, confidence decay, lint, orphan/contradiction detection |
+
+**Model delegation**: Sonnet handles judgment-heavy work (classification, scoring, drafting). Haiku handles all wiki I/O — reads, writes, and maintenance — at ~75% lower token cost. Wiki operations within Sonnet skills (e.g., reading a Person page during triage) delegate to Haiku-tier reasoning internally.
 
 ### 3. Credential vault
 
@@ -90,10 +92,11 @@ Encrypted storage for OAuth tokens:
 
 Automated triggers that wake the agent on a set cadence:
 - Each trigger fires at its scheduled time
-- A new agent session starts
+- A new agent session starts with the appropriate model (Sonnet or Haiku)
 - The session runs the specified skill with the given parameters
 - The session ends and the agent goes back to sleep
 - State (cursors, queues, wiki) persists between sessions
+- Five schedules: urgent scan (10 min), full triage (hourly), wiki maintenance (6:45 AM, Haiku), morning digest (7 AM), EOD wrap (5 PM)
 
 ---
 

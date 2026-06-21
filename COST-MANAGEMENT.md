@@ -38,7 +38,7 @@ Claude Managed Agents have two cost components:
 | Claude Opus 4 | $15.00 | $75.00 |
 | Claude Haiku 4 | $0.80 | $4.00 |
 
-**Recommendation**: Use **Claude Sonnet 4** for the best cost/performance balance. The classification and drafting tasks don't require Opus-level reasoning, and Sonnet is 5x cheaper.
+**Recommendation**: Use **Claude Sonnet 4** as the primary model for classification, scoring, drafting, and digest composition. Delegate wiki operations (reads, writes, maintenance) to **Claude Haiku 4** — wiki tasks are structured and mechanical, and Haiku handles them accurately at ~75% lower cost. This model delegation is the single biggest cost optimization for the wiki.
 
 ### What drives token usage
 
@@ -47,11 +47,12 @@ Claude Managed Agents have two cost components:
 | System prompt (loaded every session) | ~4,000-6,000 | 0 |
 | Reading 10 email threads | ~5,000-15,000 | 0 |
 | Reading 20 Slack messages | ~2,000-5,000 | 0 |
-| Wiki enrichment queries (2-5 pages) | ~1,000-3,000 | 0 |
-| Classifying 10 items (with wiki context) | ~800 | ~1,200-2,500 |
-| Drafting 3 responses (with wiki context) | ~1,500 | ~1,000-2,000 |
-| Composing morning digest (with wiki) | ~3,000 | ~2,000-4,000 |
-| Wiki page updates (1-3 pages) | ~200 | ~500-1,500 |
+| Wiki enrichment queries (2-5 pages) [Haiku] | ~1,000-3,000 | 0 |
+| Classifying 10 items (with wiki context) [Sonnet] | ~800 | ~1,200-2,500 |
+| Drafting 3 responses (with wiki context) [Sonnet] | ~1,500 | ~1,000-2,000 |
+| Composing morning digest [Sonnet] | ~3,000 | ~2,000-4,000 |
+| Wiki page updates (1-3 pages) [Haiku] | ~200 | ~500-1,500 |
+| Wiki maintenance — full run [Haiku] | ~2,000-5,000 | ~500-1,500 |
 
 ---
 
@@ -79,17 +80,31 @@ Daily total: ~$0.12-0.32
 Monthly total: ~$3.60-$9.60
 ```
 
-### Morning digest (7 AM weekdays)
+### Wiki maintenance (6:45 AM weekdays — Haiku)
 
 ```
 Frequency: ~22 runs/month (weekdays)
-Average runtime: ~15 seconds
-Monthly session cost: 22 × $0.08 × (15/3600) = $0.0073
-Monthly token cost: ~$0.50-1.50 (reads queue, composes long message)
-Monthly total: ~$0.50-$1.50
+Average runtime: ~8 seconds
+Monthly session cost: 22 × $0.08 × (8/3600) = $0.0039
+Monthly token cost (Haiku pricing):
+  Input: ~3,500 tokens × 22 runs × $0.80/1M = $0.06
+  Output: ~1,000 tokens × 22 runs × $4.00/1M = $0.09
+Monthly total: ~$0.15-$0.50
 ```
 
-### EOD wrap (5 PM weekdays)
+Compare: if wiki maintenance ran on Sonnet, the same operations would cost ~$0.50-1.50/month. Haiku saves ~70%.
+
+### Morning digest (7:00 AM weekdays — Sonnet)
+
+```
+Frequency: ~22 runs/month (weekdays)
+Average runtime: ~12 seconds (faster now — wiki maintenance runs separately)
+Monthly session cost: 22 × $0.08 × (12/3600) = $0.0059
+Monthly token cost: ~$0.50-1.30 (reads queue, reads wiki maintenance results, composes message)
+Monthly total: ~$0.50-$1.30
+```
+
+### EOD wrap (5:00 PM weekdays — Sonnet)
 
 ```
 Frequency: ~22 runs/month
@@ -101,23 +116,24 @@ Monthly total: ~$0.30-$0.80
 
 ### Total monthly estimate
 
-| Component | Low estimate | High estimate |
-|-----------|-------------|---------------|
-| Urgent scans | $0.60 | $1.20 |
-| Full triage | $4.50 | $12.00 |
-| Morning digest (with wiki) | $0.80 | $2.00 |
-| EOD wrap (with wiki) | $0.50 | $1.20 |
-| Wiki maintenance | $0.50 | $1.50 |
-| **Subtotal** | **$6.90** | **$17.90** |
-| Buffer (unexpected spikes) | $2.00 | $5.00 |
-| **Total** | **$8.90** | **$22.90** |
+| Component | Model | Low estimate | High estimate |
+|-----------|-------|-------------|---------------|
+| Urgent scans | Sonnet | $0.60 | $1.20 |
+| Full triage (incl. wiki reads/writes) | Sonnet + Haiku | $4.00 | $11.00 |
+| Wiki maintenance | Haiku | $0.15 | $0.50 |
+| Morning digest | Sonnet | $0.50 | $1.30 |
+| EOD wrap | Sonnet | $0.30 | $0.80 |
+| **Subtotal** | | **$5.55** | **$14.80** |
+| Buffer (unexpected spikes) | | $2.00 | $5.00 |
+| **Total** | | **$7.55** | **$19.80** |
 
-The higher end of the range ($17-45/month) accounts for:
+The higher end of the range ($15-35/month) accounts for:
 - Higher email/Slack volume (50+ items per triage instead of 10-20)
 - More draft responses generated (each one uses tokens)
 - Longer meeting transcripts from Granola
-- Wiki read/write operations on every run (~$2-5/month)
-- Using Claude Opus instead of Sonnet
+- Using Claude Opus instead of Sonnet for classification/drafting
+
+**Key savings from model delegation**: By running wiki operations on Haiku instead of Sonnet, wiki-related costs dropped from ~$2-5/month to ~$0.50-1.50/month. The wiki still reads and writes the same data — it just uses a cheaper model for the structured, mechanical parts.
 
 ---
 
@@ -250,10 +266,11 @@ More VIPs = more P0 items = more draft responses = more tokens. Only include peo
 
 ### Advanced optimization
 
-**5. Model selection**
-- Claude Sonnet 4 (recommended): Best cost/performance for classification tasks
-- Claude Haiku 4: Even cheaper, but may produce lower quality classifications and drafts
+**5. Model delegation (already configured)**
+- Claude Sonnet 4 (default): Classification, scoring, drafting, digest composition
+- Claude Haiku 4 (wiki operations): Wiki reads, writes, maintenance — structured tasks that don't need Sonnet's judgment
 - Claude Opus 4: Best quality, but 5x the cost of Sonnet. Only use if classification accuracy is critical and budget allows
+- Switching ALL operations to Haiku is not recommended — classification and drafting quality will noticeably degrade
 
 **6. System prompt optimization**
 - A shorter system prompt = fewer input tokens per session
