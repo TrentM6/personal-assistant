@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Assistant Agent System Architecture | Baseline Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.6.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #1a0d06;
+    --surface: #261208;
+    --elevated: #33180a;
+    --border: #4d240f;
+    --border-hi: #6b3318;
+    --orange: #fe4506;
+    --accent: #d9a088;
+    --text: #fff5f0;
+    --text2: #d9a088;
+    --muted: #995c40;
+    --urgent: #ff5c5c;
+    --respond: #ffb347;
+    --fyi: #7eb8da;
+    --low: #7dca7d;
+    --teal: #5dcaa5;
+    --purple: #afa9ec;
+    --blue: #85b7eb;
+    --pink: #ed93b1;
+    --coral: #f0997b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-width: 1200px;
+  }
+
+  /* ── PAGE SHELL ── */
+  .page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 36px 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  header svg { height: 26px; width: auto; display: block; margin-bottom: 12px; }
+  header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.4px; white-space: nowrap; }
+  header h1 span { color: var(--muted); font-weight: 400; margin: 0 4px; }
+  header .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .pills { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+    text-transform: uppercase; padding: 6px 14px; border-radius: 6px;
+    border: 1px solid var(--border); color: var(--text2);
+    background: var(--surface);
+  }
+  .pill.hi { border-color: rgba(254,69,6,0.35); color: var(--orange); background: rgba(254,69,6,0.08); }
+  .pill i { font-size: 13px; vertical-align: -1px; margin-right: 3px; }
+
+  /* ── 3-COL GRID ── */
+  .body-grid {
+    display: grid;
+    grid-template-columns: 175px 1fr 175px;
+    gap: 0 36px;
+    align-items: start;
+  }
+
+  /* ── SIDEBARS ── */
+  .sidebar { padding-top: 8px; }
+  .sidebar h4 {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted); margin-bottom: 16px;
+  }
+  .side-node {
+    padding: 14px 15px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+  .side-node:hover { border-color: var(--orange); }
+  .side-node h5 { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+  .side-node h5 i { font-size: 13px; margin-right: 3px; vertical-align: -1px; }
+  .side-node p { font-size: 11px; color: var(--muted); opacity: 0.7; line-height: 1.45; }
+
+  .cron-node {
+    padding: 12px 15px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+  .cron-node:hover { border-color: var(--orange); }
+  .cron-node h5 {
+    font-size: 13px; font-weight: 600;
+  }
+  .cron-node p { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .cron-node p i { font-size: 12px; margin-right: 2px; vertical-align: -1px; }
+
+  /* ── CENTER PIPELINE ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Agent boundary wrapper */
+  .agent-wrap {
+    width: 100%;
+    border: 1.5px solid rgba(254,69,6,0.15);
+    border-radius: 16px;
+    padding: 0 20px 36px;
+    position: relative;
+  }
+  .agent-header {
+    margin: 0 -20px 32px;
+    padding: 14px 20px;
+    border-radius: 15px 15px 0 0;
+    background: rgba(254,69,6,0.06);
+    border-bottom: 1px solid rgba(254,69,6,0.12);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .agent-header .ah-ico {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(254,69,6,0.12); color: var(--orange); font-size: 14px;
+  }
+  .agent-header .ah-ico i { font-size: 14px; display: inline-block; width: 14px; height: 14px; text-align: center; line-height: 14px; }
+  .agent-header h2 {
+    font-size: 14px; font-weight: 600; color: var(--orange);
+  }
+  .agent-header .ah-sub {
+    font-size: 12px; color: var(--muted); margin-left: auto;
+  }
+  .agent-label { display: none; }
+
+  /* Step labels */
+  .step-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted);
+    margin-bottom: 14px;
+    align-self: flex-start;
+  }
+
+  /* Flow arrows */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .arrow::before {
+    content: '';
+    display: block;
+    width: 14px;
+    height: 30px;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 14 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='7' y1='0' x2='7' y2='23' stroke='%236b3318' stroke-width='2'/%3E%3Cpolyline points='1.5,18 7,24 12.5,18' fill='none' stroke='%236b3318' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+    background-size: contain;
+  }
+
+  /* Source row */
+  .sources {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
+  .src {
+    padding: 22px 16px;
+    text-align: center;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .src:hover { border-color: var(--orange); }
+  .src .mcp-tag {
+    position: absolute; top: -9px; right: 12px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+    z-index: 1;
+  }
+  .src .ico {
+    width: 52px; height: 52px; border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px;
+  }
+  .src .ico i { font-size: 26px; display: inline-block; width: 26px; height: 26px; text-align: center; line-height: 26px; }
+  .src h3 { font-size: 16px; font-weight: 600; }
+  .src p { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .src .perm {
+    display: inline-block; margin-top: 10px;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+  }
+
+  /* Process nodes */
+  .proc {
+    width: 100%;
+    padding: 24px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s;
+  }
+  .proc:hover { border-color: var(--orange); }
+  .proc.narrow { max-width: 520px; }
+  .proc h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .proc h3 i { font-size: 18px; color: var(--orange); vertical-align: -2px; margin-right: 6px; }
+  .proc > p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .proc .rules { margin-top: 14px; }
+  .proc .rule {
+    font-size: 12px; color: var(--text2); padding: 4px 0;
+    display: flex; align-items: baseline; gap: 10px; line-height: 1.5;
+  }
+  .proc .rule-key {
+    font-weight: 700; font-size: 11px; flex-shrink: 0; min-width: 65px;
+  }
+  .proc .signals { margin-top: 14px; list-style: none; }
+  .proc .signals li {
+    font-size: 12px; color: var(--text2); padding: 4px 0 4px 18px;
+    position: relative; line-height: 1.55;
+  }
+  .proc .signals li::before {
+    content: ''; position: absolute; left: 0; top: 12px;
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .proc .signals li.h::before { background: var(--urgent); }
+  .proc .signals li.m::before { background: var(--respond); }
+  .proc .signals li.l::before { background: var(--teal); }
+
+  /* Branch connector (1→many) */
+  .branch {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0 8px;
+  }
+  .branch .stem {
+    width: 2px; height: 18px;
+    background: var(--border-hi);
+  }
+  .branch .drops {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    border-top: 2px solid var(--border-hi);
+  }
+  .branch .drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .branch .drop::after {
+    content: '';
+    width: 2px;
+    height: 16px;
+    background: var(--border-hi);
+  }
+
+  /* Merge connector (many→1) */
+  .merge {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 14px;
+  }
+  .merge .drops {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    border-bottom: 2px solid var(--border-hi);
+  }
+  .merge .drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .merge .drop::before {
+    content: '';
+    width: 2px;
+    height: 16px;
+    background: var(--border-hi);
+  }
+  .merge .stem {
+    width: 2px; height: 18px;
+    background: var(--border-hi);
+  }
+
+  /* Tier row */
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    width: 100%;
+  }
+  .tier {
+    padding: 18px 16px;
+    text-align: center;
+    border-radius: 12px;
+    border: 1px solid;
+    transition: border-color 0.2s;
+  }
+  .tier:hover { border-color: var(--orange) !important; }
+  .tier h3 { font-size: 14px; font-weight: 600; }
+  .tier .sub { font-size: 11px; margin-top: 3px; opacity: 0.7; }
+  .tier .triggers {
+    font-size: 11px; text-align: left; margin-top: 10px;
+    padding-top: 10px; line-height: 1.6; opacity: 0.6;
+  }
+
+  /* Output row */
+  .outputs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
+  .out {
+    padding: 22px 16px;
+    text-align: center;
+    border-radius: 12px;
+    border: 1px solid;
+    transition: border-color 0.2s;
+  }
+  .out:hover { border-color: var(--orange) !important; }
+  .out .ico {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px; font-size: 22px;
+  }
+  .out .ico i { font-size: 22px; display: inline-block; width: 22px; height: 22px; text-align: center; line-height: 22px; }
+  .out h3 { font-size: 15px; font-weight: 600; }
+  .out p { font-size: 12px; margin-top: 4px; line-height: 1.5; opacity: 0.75; }
+  .out .freq {
+    display: inline-block; margin-top: 12px;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.6px;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; gap: 24px; justify-content: center;
+    padding: 24px 0 40px;
+    font-size: 11px; color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .leg-solid { width: 22px; height: 2px; border-radius: 1px; }
+  .leg-dash { width: 22px; height: 0; border-top: 2px dashed; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .fcell {
+    padding: 24px 24px;
+    border-right: 1px solid var(--border);
+  }
+  .fcell:last-child { border-right: none; }
+  .fcell .fl {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px;
+  }
+  .fcell h4 { font-size: 14px; font-weight: 600; }
+  .fcell h4 i { font-size: 15px; color: var(--orange); vertical-align: -1px; margin-right: 5px; }
+  .fcell p { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  /* ── INFRA STRIP ── */
+  .infra {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .infra-card {
+    padding: 18px 16px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s;
+  }
+  .infra-card:hover { border-color: var(--orange); }
+  .infra-card .ic-top {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .infra-card .ic-ico {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    background: rgba(254,69,6,0.1);
+    color: var(--orange);
+  }
+  .infra-card .ic-ico i { font-size: 16px; display: inline-block; width: 16px; height: 16px; text-align: center; line-height: 16px; }
+  .infra-card h5 { font-size: 13px; font-weight: 600; }
+  .infra-card p { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .infra-card .ic-detail {
+    font-size: 10px; color: var(--muted); margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid var(--border);
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ HEADER ═══ -->
+  <header>
+    <div>
+      <svg viewBox="0 0 1000 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M127.706 125.85H16.0054V109.21H127.7V92.4556H16.0054V14.1499H127.706V125.85Z" fill="#FE4506"/>
+        <path d="M165.022 106.15V33.9555H190.95C199.627 33.9555 206.169 35.5146 210.575 38.6329C214.981 41.7512 217.185 46.6997 217.185 53.4785C217.185 56.529 216.541 59.2066 215.253 61.5114C213.965 63.8162 212.067 65.6465 209.558 67.0022C207.118 68.2902 204.203 68.9681 200.814 69.0359L200.712 68.6292C206.881 68.7647 211.66 70.4594 215.049 73.7133C218.506 76.8993 220.235 81.1022 220.235 86.3219C220.235 92.8973 218.032 97.8459 213.626 101.167C209.219 104.489 202.949 106.15 194.814 106.15H165.022ZM176.003 96.2867H194.509C199.051 96.2867 202.576 95.3716 205.084 93.5413C207.66 91.6432 208.948 88.8978 208.948 85.305C208.948 81.7801 207.66 79.0346 205.084 77.0688C202.576 75.1029 199.051 74.12 194.509 74.12H176.003V96.2867ZM176.003 64.7652H190.747C195.56 64.7652 199.288 63.8501 201.932 62.0198C204.576 60.1895 205.898 57.6136 205.898 54.292C205.898 50.767 204.61 48.1571 202.034 46.4624C199.526 44.6999 195.763 43.8187 190.747 43.8187H176.003V64.7652ZM248.265 107.37C242.639 107.37 238.131 106.082 234.741 103.506C231.42 100.93 229.759 97.3035 229.759 92.6262C229.759 87.9488 231.149 84.3221 233.928 81.7462C236.775 79.1024 241.147 77.2044 247.045 76.052L265.653 72.4931C265.653 68.2902 264.67 65.172 262.704 63.1383C260.738 61.0369 257.823 59.9862 253.959 59.9862C250.502 59.9862 247.791 60.7657 245.825 62.3249C243.859 63.8162 242.503 66.0532 241.757 69.0359L230.674 68.3241C231.691 62.9011 234.199 58.6304 238.199 55.5122C242.266 52.3939 247.519 50.8348 253.959 50.8348C261.28 50.8348 266.839 52.8006 270.635 56.7323C274.499 60.5963 276.431 66.0532 276.431 73.1032V94.1514C276.431 95.4394 276.634 96.3545 277.041 96.8968C277.516 97.3713 278.261 97.6086 279.278 97.6086H281.21V106.15C280.871 106.218 280.329 106.285 279.583 106.353C278.838 106.421 278.058 106.455 277.245 106.455C274.94 106.455 272.94 106.082 271.245 105.336C269.618 104.591 268.398 103.371 267.585 101.676C266.771 99.9134 266.365 97.5747 266.365 94.6598L267.483 95.1682C266.941 97.5408 265.754 99.6422 263.924 101.473C262.162 103.303 259.891 104.76 257.111 105.845C254.4 106.862 251.451 107.37 248.265 107.37ZM249.994 98.8288C253.248 98.8288 256.027 98.2187 258.332 96.9985C260.636 95.7105 262.433 93.948 263.721 91.711C265.009 89.474 265.653 86.932 265.653 84.0849V80.6277L249.79 83.6781C246.537 84.2882 244.232 85.2712 242.876 86.6269C241.588 87.9149 240.944 89.5757 240.944 91.6093C240.944 93.9141 241.724 95.7105 243.283 96.9985C244.91 98.2187 247.147 98.8288 249.994 98.8288ZM310.758 107.37C305.674 107.37 301.37 106.591 297.845 105.031C294.388 103.472 291.71 101.337 289.812 98.6254C287.914 95.8461 286.829 92.6601 286.558 89.0673L297.641 88.5589C298.184 91.5416 299.472 93.9141 301.505 95.6766C303.539 97.4391 306.623 98.3204 310.758 98.3204C314.148 98.3204 316.825 97.7781 318.791 96.6935C320.757 95.6088 321.74 93.8802 321.74 91.5077C321.74 90.2197 321.401 89.1351 320.723 88.2538C320.113 87.3048 318.893 86.5252 317.063 85.9151C315.232 85.2373 312.521 84.5933 308.928 83.9832C303.573 82.9664 299.37 81.7801 296.32 80.4243C293.269 79.0685 291.1 77.3399 289.812 75.2385C288.524 73.1371 287.88 70.595 287.88 67.6123C287.88 62.6638 289.71 58.6304 293.371 55.5122C297.099 52.3939 302.454 50.8348 309.437 50.8348C314.114 50.8348 318.046 51.6482 321.232 53.2751C324.418 54.8343 326.892 56.9696 328.654 59.6811C330.485 62.3249 331.637 65.3075 332.112 68.6292L321.028 69.2393C320.689 67.3412 320.011 65.7143 318.995 64.3585C318.046 62.935 316.758 61.8503 315.131 61.1047C313.504 60.2912 311.572 59.8845 309.335 59.8845C305.878 59.8845 303.302 60.5624 301.607 61.9181C299.912 63.2739 299.065 65.0364 299.065 67.2056C299.065 68.8325 299.438 70.1544 300.183 71.1712C300.997 72.188 302.285 73.0354 304.047 73.7133C305.81 74.3234 308.149 74.8657 311.063 75.3402C316.69 76.2892 321.096 77.4755 324.282 78.8991C327.468 80.2548 329.705 81.9495 330.993 83.9832C332.281 86.0168 332.925 88.4911 332.925 91.406C332.925 94.7954 331.976 97.6764 330.078 100.049C328.18 102.422 325.57 104.252 322.248 105.54C318.927 106.76 315.097 107.37 310.758 107.37ZM366.101 107.37C360.814 107.37 356.238 106.218 352.374 103.913C348.578 101.608 345.629 98.3204 343.528 94.0497C341.494 89.7791 340.477 84.7966 340.477 79.1024C340.477 73.4082 341.494 68.4597 343.528 64.2568C345.629 59.9862 348.578 56.6984 352.374 54.3936C356.17 52.0211 360.644 50.8348 365.796 50.8348C370.677 50.8348 374.982 51.9872 378.71 54.292C382.438 56.529 385.319 59.7828 387.353 64.0535C389.454 68.3241 390.505 73.476 390.505 79.5092V82.2546H351.662C351.934 87.5421 353.323 91.5077 355.831 94.1514C358.407 96.7951 361.865 98.117 366.203 98.117C369.389 98.117 372.033 97.3713 374.134 95.88C376.236 94.3887 377.693 92.3889 378.507 89.8807L389.692 90.5925C388.268 95.6088 385.455 99.6761 381.252 102.794C377.117 105.845 372.067 107.37 366.101 107.37ZM351.662 74.12H379.117C378.778 69.307 377.388 65.7482 374.948 63.4434C372.575 61.1386 369.525 59.9862 365.796 59.9862C361.932 59.9862 358.746 61.2064 356.238 63.6467C353.798 66.0193 352.273 69.5104 351.662 74.12ZM413.718 106.15C410.193 106.15 407.346 105.235 405.177 103.404C403.007 101.574 401.923 98.6593 401.923 94.6598V33.9555H412.701V93.643C412.701 94.8632 413.006 95.7783 413.616 96.3884C414.294 96.9985 415.243 97.3035 416.463 97.3035H420.734V106.15H413.718ZM429.826 106.15V52.055H440.604V106.15H429.826ZM429.623 44.2254V33.4471H440.808V44.2254H429.623ZM456.736 106.15V52.055H466.599L467.006 66.4938L465.684 65.7821C466.294 62.2571 467.446 59.41 469.141 57.2407C470.836 55.0715 472.903 53.4785 475.344 52.4617C477.784 51.3771 480.428 50.8348 483.275 50.8348C487.342 50.8348 490.698 51.7499 493.342 53.5802C496.053 55.3427 498.087 57.7831 499.442 60.9013C500.866 63.9518 501.578 67.4429 501.578 71.3746V106.15H490.799V74.6284C490.799 71.4424 490.461 68.7647 489.783 66.5955C489.105 64.4263 487.986 62.7655 486.427 61.6131C484.868 60.4607 482.834 59.8845 480.326 59.8845C476.53 59.8845 473.446 61.1386 471.073 63.6467C468.701 66.1549 467.514 69.8155 467.514 74.6284V106.15H456.736ZM537.889 107.37C532.601 107.37 528.026 106.218 524.162 103.913C520.365 101.608 517.417 98.3204 515.315 94.0497C513.282 89.7791 512.265 84.7966 512.265 79.1024C512.265 73.4082 513.282 68.4597 515.315 64.2568C517.417 59.9862 520.365 56.6984 524.162 54.3936C527.958 52.0211 532.432 50.8348 537.584 50.8348C542.464 50.8348 546.769 51.9872 550.497 54.292C554.226 56.529 557.107 59.7828 559.14 64.0535C561.242 68.3241 562.292 73.476 562.292 79.5092V82.2546H523.45C523.721 87.5421 525.111 91.5077 527.619 94.1514C530.195 96.7951 533.652 98.117 537.99 98.117C541.176 98.117 543.82 97.3713 545.922 95.88C548.023 94.3887 549.48 92.3889 550.294 89.8807L561.479 90.5925C560.055 95.6088 557.242 99.6761 553.039 102.794C548.904 105.845 543.854 107.37 537.889 107.37ZM523.45 74.12H550.904C550.565 69.307 549.175 65.7482 546.735 63.4434C544.362 61.1386 541.312 59.9862 537.584 59.9862C533.72 59.9862 530.534 61.2064 528.026 63.6467C525.585 66.0193 524.06 69.5104 523.45 74.12Z" fill="#fff5f0"/>
+      </svg>
+      <h1>Personal Assistant <span>· Agent System Architecture</span></h1>
+      <div class="sub">How data flows from sources through triage to actionable surfaces</div>
+    </div>
+  </header>
+
+  <!-- ═══ META STRIP ═══ -->
+  <div class="pills" style="margin: -32px 0 36px; padding: 0;">
+    <span class="pill"><i class="ti ti-cloud"></i> Claude Managed Agents</span>
+    <span class="pill"><i class="ti ti-plug-connected"></i> 4 MCP connectors</span>
+  </div>
+
+  <!-- ═══ 3-COLUMN BODY ═══ -->
+  <div class="body-grid">
+
+    <!-- ── LEFT SIDEBAR: Config ── -->
+    <aside class="sidebar">
+      <h4>Config inputs</h4>
+
+      <div class="side-node">
+        <h5><i class="ti ti-users"></i> VIP senders</h5>
+        <p>CEO, founders, board, key clients — always P0</p>
+      </div>
+      <div class="side-node">
+        <h5><i class="ti ti-filter"></i> Channel filters</h5>
+        <p>Slack channels + Gmail labels to include or exclude</p>
+      </div>
+      <div class="side-node">
+        <h5><i class="ti ti-folder"></i> Active projects</h5>
+        <p>Notion databases for topic scoring + context</p>
+      </div>
+      <div class="side-node">
+        <h5><i class="ti ti-writing"></i> Writing style</h5>
+        <p>Tone, formality, phrases learned from sent messages</p>
+      </div>
+      <div class="side-node">
+        <h5><i class="ti ti-list-check"></i> Digest template</h5>
+        <p>Sections, order, delivery channel preferences</p>
+      </div>
+    </aside>
+
+    <!-- ── CENTER PIPELINE ── -->
+    <div class="pipeline">
+      <div class="agent-wrap">
+        <div class="agent-header">
+          <div class="ah-ico"><i class="ti ti-cloud"></i></div>
+          <h2>Claude Managed Agent</h2>
+          <div class="ah-sub">Anthropic-hosted &middot; Always-on &middot; No infrastructure to manage</div>
+        </div>
+
+        <!-- Infrastructure strip -->
+        <div class="step-label" style="margin-bottom: 14px;">Agent infrastructure</div>
+        <div class="infra">
+          <div class="infra-card">
+            <div class="ic-top">
+              <div class="ic-ico"><i class="ti ti-brain"></i></div>
+              <h5>System prompt</h5>
+            </div>
+            <p>The agent's "brain" — detailed instructions that define how it triages, classifies, and responds.</p>
+            <div class="ic-detail">Written by Baseline, customized for her workflow and communication style</div>
+          </div>
+          <div class="infra-card">
+            <div class="ic-top">
+              <div class="ic-ico"><i class="ti ti-wand"></i></div>
+              <h5>Skills</h5>
+            </div>
+            <p>Named capabilities the agent can perform: email triage, meeting follow-up, daily digest, task extraction.</p>
+            <div class="ic-detail">Each skill is a focused routine with its own rules and output format</div>
+          </div>
+          <div class="infra-card">
+            <div class="ic-top">
+              <div class="ic-ico"><i class="ti ti-lock"></i></div>
+              <h5>Credential vault</h5>
+            </div>
+            <p>Encrypted OAuth tokens that let the agent securely access Gmail, Slack, Granola, and Notion.</p>
+            <div class="ic-detail">No passwords in code. Tokens encrypted at rest in Anthropic's vault.</div>
+          </div>
+          <div class="infra-card">
+            <div class="ic-top">
+              <div class="ic-ico"><i class="ti ti-clock"></i></div>
+              <h5>Cron scheduler</h5>
+            </div>
+            <p>Automated triggers that wake the agent on a set cadence — every 10 min, 1 hr, 7am, and 5pm.</p>
+            <div class="ic-detail">Each trigger runs a session: the agent wakes, does its work, then goes back to sleep.</div>
+          </div>
+        </div>
+
+        <!-- 01 Sources -->
+        <div class="step-label">01 // Data sources</div>
+        <div class="sources">
+          <div class="src" style="border-color: rgba(133,183,235,0.22);">
+            <div class="mcp-tag">MCP</div>
+            <div class="ico" style="background: rgba(133,183,235,0.12); color: var(--blue);"><i class="ti ti-mail"></i></div>
+            <h3 style="color: var(--blue);">Gmail</h3>
+            <p>Threads, labels, attachments, drafts</p>
+            <div class="perm" style="background: rgba(133,183,235,0.12); color: var(--blue);">Read + write</div>
+          </div>
+          <div class="src" style="border-color: rgba(175,169,236,0.22);">
+            <div class="mcp-tag">MCP</div>
+            <div class="ico" style="background: rgba(175,169,236,0.12); color: var(--purple);"><i class="ti ti-brand-slack"></i></div>
+            <h3 style="color: var(--purple);">Slack</h3>
+            <p>Channels, DMs, threads, @mentions</p>
+            <div class="perm" style="background: rgba(175,169,236,0.12); color: var(--purple);">Read + write</div>
+          </div>
+          <div class="src" style="border-color: rgba(93,202,165,0.22);">
+            <div class="mcp-tag">MCP</div>
+            <div class="ico" style="background: rgba(93,202,165,0.12); color: var(--teal);"><i class="ti ti-microphone"></i></div>
+            <h3 style="color: var(--teal);">Granola</h3>
+            <p>Transcripts, notes, action items</p>
+            <div class="perm" style="background: rgba(93,202,165,0.12); color: var(--teal);">Read only</div>
+          </div>
+          <div class="src" style="border-color: rgba(240,153,123,0.22);">
+            <div class="mcp-tag">MCP</div>
+            <div class="ico" style="background: rgba(240,153,123,0.12); color: var(--coral);"><i class="ti ti-notebook"></i></div>
+            <h3 style="color: var(--coral);">Notion</h3>
+            <p>Databases, pages, wiki, tasks</p>
+            <div class="perm" style="background: rgba(240,153,123,0.12); color: var(--coral);">Read + write</div>
+          </div>
+        </div>
+
+        <!-- ↓ -->
+        <div class="arrow"></div>
+
+        <!-- 02 Ingest -->
+        <div class="step-label">02 // Ingestion</div>
+        <div class="proc">
+          <h3><i class="ti ti-database-import"></i> Ingest + normalize</h3>
+          <p>Pull new items since last cursor. Normalize into common schema: source, sender, timestamp, content, thread_id, metadata.</p>
+          <div class="rules">
+            <div class="rule"><span class="rule-key" style="color: var(--blue);">Gmail</span> search_threads(after: cursor) &rarr; sender, subject, body, labels</div>
+            <div class="rule"><span class="rule-key" style="color: var(--purple);">Slack</span> read_channel + read_thread &rarr; author, channel, text, reactions</div>
+            <div class="rule"><span class="rule-key" style="color: var(--teal);">Granola</span> list_meetings(since: cursor) &rarr; participants, topics, action_items</div>
+            <div class="rule"><span class="rule-key" style="color: var(--coral);">Notion</span> query recently_modified &rarr; page_title, properties, linked_projects</div>
+          </div>
+        </div>
+
+        <!-- ↓ -->
+        <div class="arrow"></div>
+
+        <!-- Dedup -->
+        <div class="proc">
+          <h3><i class="ti ti-copy-off"></i> Deduplicate + merge</h3>
+          <p>Same thread in email and Slack? Merge into one item. Content hash skips already-processed items.</p>
+        </div>
+
+        <!-- ↓ -->
+        <div class="arrow"></div>
+
+        <!-- 03 Classify -->
+        <div class="step-label">03 // Classification</div>
+        <div class="proc">
+          <h3><i class="ti ti-tags"></i> Classify</h3>
+          <p>Each item assigned an urgency tier. Claude evaluates sender, content, context, and timing in a single inference call.</p>
+          <div class="rules">
+            <div class="rule"><span class="rule-key" style="color: var(--muted);">In</span> Normalized item + VIP list + active projects + channel filters</div>
+            <div class="rule"><span class="rule-key" style="color: var(--muted);">Out</span> Urgency tier (P0-P3) + confidence score + reasoning</div>
+          </div>
+        </div>
+
+        <!-- Branch 1→4 -->
+        <div class="branch">
+          <div class="stem"></div>
+          <div class="drops">
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+          </div>
+        </div>
+
+        <!-- 04 Tiers -->
+        <div class="step-label">04 // Urgency tiers</div>
+        <div class="tiers">
+          <div class="tier" style="border-color: rgba(255,92,92,0.22); background: rgba(255,92,92,0.06); color: var(--urgent);">
+            <h3>P0 Urgent</h3>
+            <div class="sub">Action within 1 hour</div>
+            <div class="triggers" style="border-top: 1px solid rgba(255,92,92,0.2);">VIP sender<br>Deadline today<br>Escalation language</div>
+          </div>
+          <div class="tier" style="border-color: rgba(255,179,71,0.22); background: rgba(255,179,71,0.06); color: var(--respond);">
+            <h3>P1 Respond</h3>
+            <div class="sub">Reply expected today</div>
+            <div class="triggers" style="border-top: 1px solid rgba(255,179,71,0.2);">Direct question<br>Client-facing<br>Meeting follow-up</div>
+          </div>
+          <div class="tier" style="border-color: rgba(126,184,218,0.18); background: rgba(126,184,218,0.04); color: var(--fyi);">
+            <h3>P2 FYI</h3>
+            <div class="sub">Awareness only</div>
+            <div class="triggers" style="border-top: 1px solid rgba(126,184,218,0.15);">CC'd on thread<br>Status updates<br>Announcements</div>
+          </div>
+          <div class="tier" style="border-color: rgba(125,202,125,0.18); background: rgba(125,202,125,0.04); color: var(--low);">
+            <h3>P3 Low</h3>
+            <div class="sub">Batch later</div>
+            <div class="triggers" style="border-top: 1px solid rgba(125,202,125,0.15);">Auto notifications<br>Marketing<br>Non-urgent internal</div>
+          </div>
+        </div>
+
+        <!-- Merge 4→1 -->
+        <div class="merge">
+          <div class="drops">
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+          </div>
+          <div class="stem"></div>
+        </div>
+
+        <!-- 05 Scorer -->
+        <div class="step-label">05 // Priority scoring</div>
+        <div class="proc">
+          <h3><i class="ti ti-chart-arrows"></i> Priority scorer</h3>
+          <p>Within each tier, items ranked by weighted composite score. Cross-source context enrichment from Granola + Notion.</p>
+          <ul class="signals">
+            <li class="h"><strong>Sender importance</strong> &mdash; VIP list, org chart, client flag</li>
+            <li class="h"><strong>Deadline proximity</strong> &mdash; dates, time language, calendar</li>
+            <li class="m"><strong>Topic relevance</strong> &mdash; active projects, recent meetings</li>
+            <li class="m"><strong>Thread heat</strong> &mdash; reply velocity, @mentions, reactions</li>
+            <li class="l"><strong>Staleness</strong> &mdash; time unanswered, follow-ups sent</li>
+          </ul>
+        </div>
+
+        <!-- ↓ -->
+        <div class="arrow"></div>
+
+        <!-- 06 Router -->
+        <div class="step-label">06 // Action routing</div>
+        <div class="proc">
+          <h3><i class="ti ti-route"></i> Action router</h3>
+          <p>Maps each classified + scored item to output actions based on tier and source.</p>
+          <div class="rules">
+            <div class="rule"><span class="rule-key" style="color: var(--urgent);">P0</span> Draft response + immediate Slack alert</div>
+            <div class="rule"><span class="rule-key" style="color: var(--respond);">P1</span> Draft queued in Gmail, included in digest</div>
+            <div class="rule"><span class="rule-key" style="color: var(--fyi);">P2</span> Daily digest FYI section</div>
+            <div class="rule"><span class="rule-key" style="color: var(--low);">P3</span> Logged only, weekly rollup</div>
+            <div class="rule"><span class="rule-key" style="color: var(--teal);">Meetings</span> Action items &rarr; Notion tasks w/ owner + deadline</div>
+          </div>
+        </div>
+
+        <!-- Branch 1→4 -->
+        <div class="branch">
+          <div class="stem"></div>
+          <div class="drops">
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+            <div class="drop"></div>
+          </div>
+        </div>
+
+        <!-- 07 Outputs -->
+        <div class="step-label">07 // Surfaces</div>
+        <div class="outputs">
+          <div class="out" style="border-color: rgba(255,92,92,0.22); background: rgba(255,92,92,0.06); color: var(--urgent);">
+            <div class="ico" style="background: rgba(255,92,92,0.12);"><i class="ti ti-bell-ringing"></i></div>
+            <h3>Urgent alert</h3>
+            <p>Slack DM with context, suggested action, source link</p>
+            <div class="freq" style="background: rgba(255,92,92,0.12);">Real-time</div>
+          </div>
+          <div class="out" style="border-color: rgba(237,147,177,0.22); background: rgba(237,147,177,0.06); color: var(--pink);">
+            <div class="ico" style="background: rgba(237,147,177,0.12);"><i class="ti ti-pencil"></i></div>
+            <h3>Draft queue</h3>
+            <p>Gmail drafts + Slack replies staged for human review</p>
+            <div class="freq" style="background: rgba(237,147,177,0.12);">Batched</div>
+          </div>
+          <div class="out" style="border-color: rgba(93,202,165,0.22); background: rgba(93,202,165,0.06); color: var(--teal);">
+            <div class="ico" style="background: rgba(93,202,165,0.12);"><i class="ti ti-checkbox"></i></div>
+            <h3>Notion tasks</h3>
+            <p>Meeting action items with owner + deadline</p>
+            <div class="freq" style="background: rgba(93,202,165,0.12);">Per meeting</div>
+          </div>
+          <div class="out" style="border-color: rgba(133,183,235,0.22); background: rgba(133,183,235,0.06); color: var(--blue);">
+            <div class="ico" style="background: rgba(133,183,235,0.12);"><i class="ti ti-report-analytics"></i></div>
+            <h3>Daily digest</h3>
+            <p>Morning briefing: priorities, drafts, meeting prep</p>
+            <div class="freq" style="background: rgba(133,183,235,0.12);">7am weekdays</div>
+          </div>
+        </div>
+
+      </div><!-- /agent-wrap -->
+    </div><!-- /pipeline -->
+
+    <!-- ── RIGHT SIDEBAR: Schedule detail ── -->
+    <aside class="sidebar">
+      <h4>Schedule detail</h4>
+
+      <div class="cron-node">
+        <h5 style="color: var(--accent);">Every 10 minutes</h5>
+        <p><i class="ti ti-bolt" style="color: var(--accent);"></i> Urgent scan &mdash; checks VIP senders + approaching deadlines only</p>
+      </div>
+      <div class="cron-node">
+        <h5 style="color: var(--accent);">Every hour</h5>
+        <p><i class="ti ti-arrows-sort" style="color: var(--accent);"></i> Full triage &mdash; all 4 sources, complete pipeline</p>
+      </div>
+      <div class="cron-node">
+        <h5 style="color: var(--accent);">7:00 AM weekdays</h5>
+        <p><i class="ti ti-sunrise" style="color: var(--accent);"></i> Morning digest &mdash; compiled briefing delivered via Slack</p>
+      </div>
+      <div class="cron-node">
+        <h5 style="color: var(--accent);">5:00 PM weekdays</h5>
+        <p><i class="ti ti-sunset-2" style="color: var(--accent);"></i> EOD wrap &mdash; stale items, pending drafts, tomorrow preview</p>
+      </div>
+      <div class="cron-node" style="margin-top: 8px;">
+        <h5 style="color: var(--accent);"><i class="ti ti-database" style="margin-right: 3px; vertical-align: -1px;"></i> State store</h5>
+        <p>Remembers where it left off between runs. No items processed twice.</p>
+      </div>
+    </aside>
+
+  </div><!-- /body-grid -->
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer style="margin-top: 48px;">
+    <div class="fcell">
+      <div class="fl">Runtime</div>
+      <h4><i class="ti ti-cloud"></i> Claude Managed Agents</h4>
+      <p>Anthropic-hosted. No infrastructure to manage. Deployed via Console on their org account.</p>
+    </div>
+    <div class="fcell">
+      <div class="fl">Deployment</div>
+      <h4><i class="ti ti-rocket"></i> Setup by Baseline</h4>
+      <p>We configure the agent, prompt, skills, and connections. Deployed on your Claude org account.</p>
+    </div>
+    <div class="fcell">
+      <div class="fl">Estimated cost</div>
+      <h4><i class="ti ti-receipt-2"></i> ~$15-40/month</h4>
+      <p>$0.08/session-hour + tokens. Urgent scans ~2s, full triage ~15-30s.</p>
+    </div>
+    <div class="fcell">
+      <div class="fl">Key constraint</div>
+      <h4><i class="ti ti-shield-check"></i> Drafts, never sends</h4>
+      <p>All responses staged for human review. Nothing sent without approval.</p>
+    </div>
+  </footer>
+
+  <!-- ═══ LEGEND ═══ -->
+  <div class="legend">
+    <div class="legend-item"><div class="leg-solid" style="background: var(--border-hi);"></div> Data flow</div>
+    <div class="legend-item"><div class="leg-dash" style="border-color: var(--border-hi);"></div> Config input</div>
+    <div class="legend-item"><div class="leg-solid" style="background: var(--urgent); opacity: 0.5;"></div> Urgent</div>
+    <div class="legend-item"><div class="leg-solid" style="background: var(--respond); opacity: 0.5;"></div> Response</div>
+    <div class="legend-item"><div class="leg-solid" style="background: var(--teal); opacity: 0.5;"></div> Task</div>
+    <div class="legend-item"><div class="leg-solid" style="background: var(--blue); opacity: 0.5;"></div> Digest</div>
+  </div>
+
+</div>
+</body>
+</html>
