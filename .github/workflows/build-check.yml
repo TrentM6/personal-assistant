@@ -1,0 +1,27 @@
+name: Build check
+
+# Required status check that gates agent auto-merge. This repo is pure
+# documentation (setup guides, the system prompt, config reference) -- no
+# package manager, no build step. The real risk here isn't a broken build,
+# it's a malformed example a reader copy-pastes into a real deployment, so the
+# check is: every markdown file is non-empty valid UTF-8, and every fenced
+# ```json/```yaml example block actually parses. Deliberately the floor, not
+# the ceiling. Added 2026-08-24.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate markdown files + fenced json/yaml examples
+        run: node .github/workflows/validate-docs.mjs
