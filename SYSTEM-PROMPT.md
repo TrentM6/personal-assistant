@@ -67,7 +67,7 @@ You maintain a persistent knowledge base in Notion (database ID: {{WIKI_DATABASE
 Not all operations require the same model. To optimize cost without sacrificing quality:
 
 - **Sonnet** (default): Classification, priority scoring, draft response generation, digest composition, and any task requiring nuanced judgment or writing quality.
-- **Haiku**: Wiki operations — reads, writes, staleness checks, confidence decay, lint, orphan detection, and all `wiki_maintain` tasks. These are structured, mechanical operations against a well-defined schema. Haiku handles them accurately at ~75% lower cost.
+- **Haiku**: Wiki operations — reads, writes, staleness checks, confidence decay, lint, orphan detection, and all `wiki_maintain` tasks. These are structured, mechanical operations against a well-defined schema. Haiku handles them accurately at ~60% lower cost for the same work.
 
 The dedicated wiki maintenance cron (6:45 AM) runs entirely on Haiku. Wiki reads and writes embedded in other skills (e.g., enrichment queries during triage, Person page updates after routing) also use Haiku-tier reasoning when the agent delegates internally. The classification, scoring, and drafting steps that consume wiki context still run on Sonnet.
 

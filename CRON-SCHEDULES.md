@@ -131,7 +131,7 @@ If costs are too high:
 
 ### Model
 
-**Haiku 4** — wiki maintenance is structured, mechanical work (database queries, date comparisons, status updates). Haiku handles it accurately at ~75% lower token cost than Sonnet.
+**Haiku 4.5** — wiki maintenance is structured, mechanical work (database queries, date comparisons, status updates). Haiku handles it accurately at half Sonnet 5.5's per-token cost.
 
 ### What it does
 
@@ -151,7 +151,7 @@ Runs all wiki maintenance operations 15 minutes before the morning digest, so ma
    - **Name**: `Wiki maintenance`
    - **Cron expression**: `45 6 * * 1-5`
    - **Timezone**: (your timezone)
-   - **Model override**: `Claude Haiku 4` (if supported — otherwise set in the skill config)
+   - **Model override**: `Claude Haiku 4.5` (if supported — otherwise set in the skill config)
    - **Skill**: `wiki_maintain`
    - **Parameters**: `{ "operation": "full" }`
 4. Click **Save**
@@ -164,9 +164,9 @@ This runs 15 minutes before the morning digest (7:00 AM). The maintenance result
 
 - Each run: ~5-10 seconds
 - 22 runs/month (weekdays only)
-- **Haiku pricing**: Input $0.80/1M tokens, Output $4.00/1M tokens (~75% cheaper than Sonnet)
+- **Haiku 4.5 pricing**: Input $1.00/1M tokens, Output $5.00/1M tokens (half Sonnet 5.5's per-token rate)
 - Token usage: ~2,000-5,000 input, ~500-1,500 output per run
-- **Monthly estimate: $0.15-$0.50** (was $0.50-1.50 when wiki maintenance ran on Sonnet inside the digest)
+- **Monthly estimate: $0.20-$0.60** (~$0.40-1.00 if the same work ran on Sonnet 5.5). See [COST-MANAGEMENT.md](COST-MANAGEMENT.md) for the full derivation — that file is the source of truth for every cost figure here.
 
 ### Tuning
 
@@ -223,7 +223,7 @@ Compiles and delivers the morning briefing. Wiki maintenance has already run at 
 - 5 runs/week (weekdays only)
 - Moderate token usage (composing the digest message, reading wiki context)
 - Cheaper than before: wiki maintenance is no longer part of this session
-- **Monthly estimate: $0.80-$2.00**
+- **Monthly estimate: $0.50-$1.30** (Sonnet 5.5; see [COST-MANAGEMENT.md](COST-MANAGEMENT.md) §2 for the derivation — this figure previously read $0.80-$2.00 here and $0.50-$1.30 there, two numbers for one fact)
 
 ---
 

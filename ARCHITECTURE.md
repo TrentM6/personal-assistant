@@ -77,7 +77,7 @@ Six core skills:
 | `draft_response` | Sonnet | Called by email_triage for P0/P1 items | Generate wiki-informed draft replies |
 | `wiki_maintain` | **Haiku** | 6:45 AM weekdays (own cron) / weekly lint | Stale detection, confidence decay, lint, orphan/contradiction detection |
 
-**Model delegation**: Sonnet handles judgment-heavy work (classification, scoring, drafting). Haiku handles all wiki I/O — reads, writes, and maintenance — at ~75% lower token cost. Wiki operations within Sonnet skills (e.g., reading a Person page during triage) delegate to Haiku-tier reasoning internally.
+**Model delegation**: Sonnet handles judgment-heavy work (classification, scoring, drafting). Haiku handles all wiki I/O — reads, writes, and maintenance — at ~60% lower cost for the same work. Wiki operations within Sonnet skills (e.g., reading a Person page during triage) delegate to Haiku-tier reasoning internally.
 
 ### 3. Credential vault
 

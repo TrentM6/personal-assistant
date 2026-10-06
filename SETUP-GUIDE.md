@@ -74,9 +74,10 @@ This prevents runaway costs if something goes wrong:
    - **Recommended starting budget**: $50/month
    - This is a hard cap — the agent stops running when the budget is hit
    - You'll get email alerts at 50%, 75%, and 90% of the budget
-4. Set a **Per-session limit** (optional but recommended):
+4. Set a **Per-session limit** (required — do not skip this):
    - Set to **$1.00** per session
    - This prevents any single agent run from consuming too many tokens
+   - The monthly budget alone is not enough: it bounds the damage at a month's spend, and a single stuck overnight session can burn the whole cap before an alert reaches you. The per-session limit is the only control that stops one bad run, and it is enforced by billing rather than by instructions to the model.
 5. Click **Save limits**
 
 ### 3c. Monitor your spending
@@ -116,9 +117,9 @@ This prevents runaway costs if something goes wrong:
    - **Name**: `Personal Assistant`
    - **Description**: `Triages Gmail, Slack, Granola, and Notion. Classifies by urgency, drafts responses, delivers daily briefings.`
 3. Select the **Model**:
-   - Choose **Claude Sonnet 4** as the primary model — best balance of speed and capability for classification, scoring, and drafting
-   - The wiki maintenance cron (step 10) will use **Claude Haiku 4** — wiki operations are structured and mechanical, so Haiku handles them at ~75% lower cost
-   - Claude Opus is available if you want maximum quality on classification decisions, but costs 5x more than Sonnet
+   - Choose **Claude Sonnet 5.5** as the primary model — best balance of speed and capability for classification, scoring, and drafting
+   - The wiki maintenance cron (step 10) will use **Claude Haiku 4.5** — wiki operations are structured and mechanical, so Haiku handles them at half Sonnet's per-token cost
+   - **Claude Opus 5.5** is available if you want maximum quality on classification decisions, at 2x Sonnet's per-token cost (it was 5x in the previous model generation — on a $5-15/month baseline that upgrade is now a few dollars)
 4. Click **Create** to save the initial configuration
 
 ---
