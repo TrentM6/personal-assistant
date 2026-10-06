@@ -34,11 +34,17 @@ Claude Managed Agents have two cost components:
 
 | Model | Input (per 1M tokens) | Output (per 1M tokens) |
 |-------|----------------------|----------------------|
-| Claude Sonnet 4 | $3.00 | $15.00 |
-| Claude Opus 4 | $15.00 | $75.00 |
-| Claude Haiku 4 | $0.80 | $4.00 |
+| Claude Opus 5.5 | $4.00 | $20.00 |
+| Claude Sonnet 5.5 | $2.00 | $10.00 |
+| Claude Haiku 4.5 | $1.00 | $5.00 |
 
-**Recommendation**: Use **Claude Sonnet 4** as the primary model for classification, scoring, drafting, and digest composition. Delegate wiki operations (reads, writes, maintenance) to **Claude Haiku 4** — wiki tasks are structured and mechanical, and Haiku handles them accurately at ~75% lower cost. This model delegation is the single biggest cost optimization for the wiki.
+Prices read from [Anthropic's pricing page](https://platform.claude.com/docs/en/about-claude/pricing) on **2026-10-06**. The models this guide used to quote are retired on the first-party API — Sonnet 4 and Haiku 3.5 survive only on Bedrock and Google Cloud, Opus 4 only on Google Cloud — so you cannot select any of them for a Managed Agent. Re-check the page before trusting any total below; everything in this file is derived from those three rows.
+
+**Recommendation**: Use **Claude Sonnet 5.5** as the primary model for classification, scoring, drafting, and digest composition. Delegate wiki operations (reads, writes, maintenance) to **Claude Haiku 4.5** — wiki tasks are structured and mechanical, and Haiku handles them accurately at **half** Sonnet's per-token cost. This model delegation is the single biggest cost optimization for the wiki.
+
+**Opus is 2x Sonnet, not 5x.** Opus 5.5 ($4/$20) costs twice Sonnet 5.5 ($2/$10) per token — a far smaller penalty than the 5x gap between the older generations. If classification accuracy matters more than a few dollars a month, Opus is now a reasonable default rather than a luxury.
+
+**Tokenizer caveat (affects every estimate below).** Claude 4.7-and-later models — which includes Sonnet 5.5 and Opus 5.5, but *not* Haiku 4.5 — use a newer tokenizer that produces roughly **30% more tokens for the same text**. The token counts in this file were measured on the older tokenizer, so Sonnet-side line items run ~30% higher in token count than listed while the per-token price dropped by a third: the two effects very nearly cancel, which is why the Sonnet totals barely moved. Haiku-side line items use the same token counts at a 25% higher price.
 
 ### What drives token usage
 
@@ -86,13 +92,13 @@ Monthly total: ~$3.60-$9.60
 Frequency: ~22 runs/month (weekdays)
 Average runtime: ~8 seconds
 Monthly session cost: 22 × $0.08 × (8/3600) = $0.0039
-Monthly token cost (Haiku pricing):
-  Input: ~3,500 tokens × 22 runs × $0.80/1M = $0.06
-  Output: ~1,000 tokens × 22 runs × $4.00/1M = $0.09
-Monthly total: ~$0.15-$0.50
+Monthly token cost (Haiku 4.5 pricing):
+  Input: ~3,500 tokens × 22 runs × $1.00/1M = $0.08
+  Output: ~1,000 tokens × 22 runs × $5.00/1M = $0.11
+Monthly total: ~$0.20-$0.60
 ```
 
-Compare: if wiki maintenance ran on Sonnet, the same operations would cost ~$0.50-1.50/month. Haiku saves ~70%.
+Compare: on Sonnet 5.5 the same operations cost ~$0.50-1.55/month. Haiku saves ~60% — Sonnet 5.5 is 2x Haiku's per-token rate AND its newer tokenizer produces ~30% more tokens for the same text, so the same work costs 2.6x as much (2 × 1.3). That 2.6x factor is the one used for every Haiku-vs-Sonnet comparison in this repo.
 
 ### Morning digest (7:00 AM weekdays — Sonnet)
 
@@ -118,22 +124,24 @@ Monthly total: ~$0.30-$0.80
 
 | Component | Model | Low estimate | High estimate |
 |-----------|-------|-------------|---------------|
-| Urgent scans | Sonnet | $0.60 | $1.20 |
-| Full triage (incl. wiki reads/writes) | Sonnet + Haiku | $4.00 | $11.00 |
-| Wiki maintenance | Haiku | $0.15 | $0.50 |
-| Morning digest | Sonnet | $0.50 | $1.30 |
-| EOD wrap | Sonnet | $0.30 | $0.80 |
-| **Subtotal** | | **$5.55** | **$14.80** |
+| Urgent scans | Sonnet 5.5 | $0.60 | $1.20 |
+| Full triage (incl. wiki reads/writes) | Sonnet 5.5 + Haiku 4.5 | $4.00 | $11.00 |
+| Wiki maintenance | Haiku 4.5 | $0.20 | $0.60 |
+| Morning digest | Sonnet 5.5 | $0.50 | $1.30 |
+| EOD wrap | Sonnet 5.5 | $0.30 | $0.80 |
+| **Subtotal** | | **$5.60** | **$14.90** |
 | Buffer (unexpected spikes) | | $2.00 | $5.00 |
-| **Total** | | **$7.55** | **$19.80** |
+| **Total** | | **$7.60** | **$19.90** |
+
+The Sonnet rows are unchanged from the Sonnet 4 era on purpose: the per-token price fell by a third while the newer tokenizer raised the token count ~30%, which lands within rounding of where it was. Only the Haiku row moved, and upward — Haiku 4.5 costs 25% more per token than the retired Haiku 3.5 this guide used to price against.
 
 The higher end of the range ($15-35/month) accounts for:
 - Higher email/Slack volume (50+ items per triage instead of 10-20)
 - More draft responses generated (each one uses tokens)
 - Longer meeting transcripts from Granola
-- Using Claude Opus instead of Sonnet for classification/drafting
+- Using Claude Opus 5.5 instead of Sonnet for classification/drafting (2x per token, so roughly doubles the Sonnet rows)
 
-**Key savings from model delegation**: By running wiki operations on Haiku instead of Sonnet, wiki-related costs dropped from ~$2-5/month to ~$0.50-1.50/month. The wiki still reads and writes the same data — it just uses a cheaper model for the structured, mechanical parts.
+**Key savings from model delegation**: By running wiki operations on Haiku 4.5 instead of Sonnet 5.5, wiki-related costs run ~$0.65-1.90/month instead of ~$1.70-4.95/month (the 2.6x factor above). The wiki still reads and writes the same data — it just uses a cheaper model for the structured, mechanical parts.
 
 ---
 
@@ -164,7 +172,7 @@ The higher end of the range ($15-35/month) accounts for:
    - You'll get alerts before hitting the cap
 3. Click **Save**
 
-#### C. Set per-session limit (optional but recommended)
+#### C. Set per-session limit (required — do not skip this)
 
 1. In **Settings** > **Billing** > **Spending limits**
 2. Set **Per-session limit**: **$1.00**
@@ -172,6 +180,8 @@ The higher end of the range ($15-35/month) accounts for:
    - Normal runs use $0.01-0.30, so $1 is generous with safety margin
    - If a run hits this limit, it stops and logs an error
 3. Click **Save**
+
+The monthly budget alone is not enough. A monthly cap bounds the damage at a month's spend; a stuck agent — one tool call failing and being retried in a loop — can burn that entire cap in a single overnight session before any alert reaches you. The per-session limit is the only control that stops a single bad run, and at 144 urgent scans a day a run that costs $1 instead of $0.01 is a 100x anomaly worth killing. The agent's own rules also cap retries (see [RULES.md](RULES.md) — never retry a failed action more than once, never retry in the same session) and sessions time out at 60 seconds, but those are instructions to a model; the per-session limit is enforced by billing.
 
 #### D. Configure alerts
 
@@ -267,9 +277,9 @@ More VIPs = more P0 items = more draft responses = more tokens. Only include peo
 ### Advanced optimization
 
 **5. Model delegation (already configured)**
-- Claude Sonnet 4 (default): Classification, scoring, drafting, digest composition
-- Claude Haiku 4 (wiki operations): Wiki reads, writes, maintenance — structured tasks that don't need Sonnet's judgment
-- Claude Opus 4: Best quality, but 5x the cost of Sonnet. Only use if classification accuracy is critical and budget allows
+- Claude Sonnet 5.5 (default): Classification, scoring, drafting, digest composition
+- Claude Haiku 4.5 (wiki operations): Wiki reads, writes, maintenance — structured tasks that don't need Sonnet's judgment
+- Claude Opus 5.5: Best quality at 2x the cost of Sonnet. On a $5-15/month baseline that is a few dollars, so it's a defensible upgrade if classification accuracy matters
 - Switching ALL operations to Haiku is not recommended — classification and drafting quality will noticeably degrade
 
 **6. System prompt optimization**
@@ -298,7 +308,7 @@ Setup:
 - 30 emails/day, 50 Slack messages/day
 - 3-4 meetings/week
 - 8 VIPs (investors, board, key clients)
-- Sonnet 4 model
+- Sonnet 5.5 model
 
 Expected monthly cost: $10-18
 Recommended budget: $30
@@ -312,7 +322,7 @@ Setup:
 - 80 emails/day, 150 Slack messages/day
 - 6-8 meetings/week
 - 15 VIPs (board, leadership team, key clients)
-- Sonnet 4 model
+- Sonnet 5.5 model
 - Aggressive schedule (5-min urgent scans)
 
 Expected monthly cost: $25-40
@@ -328,9 +338,9 @@ Setup:
 - No urgent scans
 - Morning digest only, no EOD wrap
 - 20 emails/day, 30 Slack messages/day
-- Haiku 4 model
+- Haiku 4.5 model
 
-Expected monthly cost: $3-6
+Expected monthly cost: $4-8
 Recommended budget: $15
 Recommended starting credits: $15
 ```
@@ -344,9 +354,9 @@ Setup:
 - Morning + EOD + weekly digest
 - 100+ emails/day, 200+ Slack messages/day
 - 10+ meetings/week
-- Opus 4 model for best classification
+- Opus 5.5 model for best classification
 
-Expected monthly cost: $50-100+
-Recommended budget: $150
+Expected monthly cost: $40-90 (it was $50-100+ when Opus cost 5x Sonnet; at 2x this scenario got cheaper)
+Recommended budget: $120
 Recommended starting credits: $100
 ```

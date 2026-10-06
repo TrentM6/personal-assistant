@@ -60,5 +60,5 @@ The agent maintains a **persistent wiki** in Notion - a compounding knowledge ba
 
 ## Estimated cost
 
-~$8-20/month with model delegation (Sonnet for classification/drafting, Haiku for wiki operations). Wiki ops cost ~$0.50-1.50/month on Haiku (vs. ~$2-5 on Sonnet). Higher volumes or Opus model: $20-35/month.
+~$8-20/month with model delegation (Sonnet 5.5 for classification/drafting, Haiku 4.5 for wiki operations). Wiki ops cost ~$0.65-1.90/month on Haiku (vs. ~$1.70-4.95 on Sonnet). Higher volumes or Opus 5.5: $15-35/month.
 

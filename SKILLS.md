@@ -498,7 +498,7 @@ Dedicated maintenance operations for the wiki. Runs as part of the morning diges
 Name: wiki_maintain
 Description: Perform maintenance on the Assistant Wiki — detect stale pages, decay confidence, find contradictions, identify orphans, and clean up resolved items.
 
-Model: Haiku 4 — all wiki maintenance operations are structured and mechanical. Haiku handles them accurately at ~75% lower token cost than Sonnet. This skill should always run on Haiku, whether invoked by its own cron or called by another skill.
+Model: Haiku 4.5 — all wiki maintenance operations are structured and mechanical. Haiku handles them accurately at half Sonnet 5.5's per-token cost. This skill should always run on Haiku, whether invoked by its own cron or called by another skill.
 
 Parameters:
   - operation: "full" | "stale_check" | "lint"
@@ -619,4 +619,4 @@ wiki_maintain [Haiku — dedicated 6:45 AM cron]
 └── Reports findings (read by morning digest at 7:00 AM)
 ```
 
-**Model delegation summary**: Sonnet handles judgment-heavy work (classification, scoring, drafting, digest composition). Haiku handles all wiki I/O — reads, writes, and maintenance. This cuts wiki-related token costs by ~75%.
+**Model delegation summary**: Sonnet handles judgment-heavy work (classification, scoring, drafting, digest composition). Haiku handles all wiki I/O — reads, writes, and maintenance. This cuts wiki-related costs by ~60% for the same work.
