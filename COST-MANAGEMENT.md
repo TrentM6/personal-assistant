@@ -183,7 +183,29 @@ The higher end of the range ($15-35/month) accounts for:
 
 The monthly budget alone is not enough. A monthly cap bounds the damage at a month's spend; a stuck agent — one tool call failing and being retried in a loop — can burn that entire cap in a single overnight session before any alert reaches you. The per-session limit is the only control that stops a single bad run, and at 144 urgent scans a day a run that costs $1 instead of $0.01 is a 100x anomaly worth killing. The agent's own rules also cap retries (see [RULES.md](RULES.md) — never retry a failed action more than once, never retry in the same session) and sessions time out at 60 seconds, but those are instructions to a model; the per-session limit is enforced by billing.
 
-#### D. Configure alerts
+#### D. Size the monthly cap against your fleet, not against one session
+
+The per-session limit bounds **one** run. It does not bound the fleet, because neither spending control reserves money before a call — both are checks against what has already settled. With five schedules firing independently (see [CRON-SCHEDULES.md](CRON-SCHEDULES.md) — "Sessions are independent: each cron trigger runs its own session"), several sessions can each sit under the per-session limit and still blow through a monthly cap together before any one of them settles.
+
+Do the arithmetic for your own setup before trusting the cap:
+
+```
+Runs per weekday:  144 (urgent scans) + 24 (full triage) + 3 (wiki/digest/EOD) = 171
+Per-session limit: $1.00
+Worst-case daily exposure: 171 × $1.00 = $171
+Monthly cap:       $50
+```
+
+A single bad day at the per-session ceiling exhausts the recommended monthly cap three times over. The monthly cap does stop it — that is what makes it the real backstop — so **set the monthly budget to an amount you can afford to lose outright**, not to expected spend plus a buffer. The $50 recommendation above is safe because it's a number you can eat, not because the agent won't reach it.
+
+Two things to do with that number:
+
+1. **Remove the scheduled collision.** `*/10 * * * *` and `0 * * * *` both fire at `:00`, so the urgent scan and the full triage run concurrently once an hour, every hour. Stagger the scan to `5-55/10 * * * *` — same 144 runs/day, never on the hour.
+2. **Tighten the per-session limit after week one.** The $1.00 starting value is ~100x a normal urgent scan ($0.01) and ~3x the heaviest triage ($0.30). Once you have a week of real per-run costs in **Settings** > **Billing** > **Usage**, drop it to roughly 2x your observed worst run. Going from $1.00 to $0.50 halves the fleet exposure above without touching any run you actually want.
+
+Source for the concurrency failure mode: [r/AI_Agents, 2026-10-09](https://www.reddit.com/r/AI_Agents/comments/1x0vzzt/how_are_you_protecting_ai_agents_from_runaway_api/) — practitioners testing a spend-cap tool found that parallel workers checking one shared running total jointly overspend past the cap, because a check is not a reservation.
+
+#### E. Configure alerts
 
 1. In **Settings** > **Billing** > **Notifications** (or **Alerts**)
 2. Add your email address for billing notifications
