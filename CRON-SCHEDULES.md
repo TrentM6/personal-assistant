@@ -303,6 +303,8 @@ This ensures:
 - **No item is missed**: Each run picks up exactly where the last one left off
 - **Sessions are independent**: Each cron trigger runs its own session
 
+Independent sessions have a cost consequence worth knowing: `*/10 * * * *` and `0 * * * *` both fire at `:00`, so the urgent scan and the full triage run concurrently once an hour. A per-session spending limit bounds each of them separately, not the pair — see [COST-MANAGEMENT.md § 3D](COST-MANAGEMENT.md#d-size-the-monthly-cap-against-your-fleet-not-against-one-session). Staggering the scan to `5-55/10 * * * *` keeps all 144 daily runs and removes the collision.
+
 ### First run behavior
 
 On the first run (no existing cursor):
